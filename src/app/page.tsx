@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Bell, 
   BookOpen, 
@@ -10,7 +10,8 @@ import {
   MinusCircle, 
   Plus, 
   Search, 
-  User
+  User,
+  X
 } from "lucide-react";
 import HomeView from "@/components/views/HomeView";
 import ChatsView from "@/components/views/ChatsView";
@@ -19,10 +20,40 @@ import ProfileView from "@/components/views/ProfileView";
 import ProductDetailView from "@/components/views/ProductDetailView";
 import CreateListingModal from "@/components/CreateListingModal";
 
+const MOCK_SUGGESTIONS = [
+  { text: "Phone", category: "MOBILE PHONES" },
+  { text: "Photo copy printer machine", category: "HARD DISKS, PRINTERS & MONITORS" },
+  { text: "Photo frame", category: "HOME DECOR & GARDEN" },
+  { text: "nothing Phone 1", category: "ELECTRONICS" },
+  { text: "plot for sale", category: "REAL ESTATE" },
+  { text: "MacBook Pro M2", category: "LAPTOPS" },
+  { text: "Scientific Calculator", category: "ACADEMIC" },
+  { text: "Engineering Drafter", category: "ACADEMIC" },
+];
+
 export default function AppHome() {
-  const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("chats");
+  const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("home");
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredSuggestions = MOCK_SUGGESTIONS.filter(item => 
+    item.text.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderContent = () => {
     switch (activeTab) {
@@ -36,11 +67,26 @@ export default function AppHome() {
 
   const getSearchPlaceholder = () => {
     switch (activeTab) {
+      case "home": return "Search books, calculators, laptops...";
       case "chats": return "Search chats...";
       case "rentals": return "Search my rentals...";
       case "profile": return "Search my profile...";
       default: return "Search books, calculators, laptops...";
     }
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <span>
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() 
+            ? <b key={i} className="text-slate-900">{part}</b> 
+            : <span key={i} className="text-slate-400">{part}</span>
+        )}
+      </span>
+    );
   };
 
   return (
@@ -95,8 +141,8 @@ export default function AppHome() {
       {/* Main Application Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         
-        {/* Top Navbar (Persistent on all views) */}
-        <header className="px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md z-40 border-b border-slate-50">
+        {/* Top Navbar */}
+        <header className="px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md z-[60] border-b border-slate-50">
           <div className="flex items-center gap-2 md:hidden">
             <div className="bg-[#1b52d6] p-1.5 rounded-lg text-white">
               <BookOpen size={20} />
@@ -104,17 +150,49 @@ export default function AppHome() {
             <h1 className="text-lg font-black text-slate-800 tracking-tighter">StudentRental</h1>
           </div>
           
-          {/* Desktop Search Center */}
-          <div className="hidden md:block flex-1 max-w-2xl mx-10">
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl flex items-center h-12 px-4 shadow-inner focus-within:ring-4 ring-brand/5 transition-all">
+          {/* Desktop Search Center with Suggestions */}
+          <div ref={searchRef} className="hidden md:block flex-1 max-w-2xl mx-10 relative">
+            <div className={`bg-slate-50 border border-slate-100 rounded-2xl flex items-center h-12 px-4 shadow-inner focus-within:ring-4 ring-brand/5 transition-all ${showSuggestions && searchQuery ? 'rounded-b-none' : ''}`}>
               <Search className="w-5 h-5 text-slate-400 mr-2" />
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={(e) => {
+                   setSearchQuery(e.target.value);
+                   setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
                 placeholder={getSearchPlaceholder()} 
                 className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold placeholder:text-slate-300"
               />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="mr-2 text-slate-300 hover:text-slate-500 transition-colors"><X size={16} /></button>
+              )}
               <button className="text-slate-300 hover:text-[#1b52d6] transition-colors"><Mic size={18} /></button>
             </div>
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && searchQuery && filteredSuggestions.length > 0 && (
+               <div className="absolute top-12 left-0 right-0 bg-white border border-slate-100 shadow-[0_10px_30px_rgba(0,0,0,0.1)] rounded-b-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                  {filteredSuggestions.map((item, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => {
+                         setSearchQuery(item.text);
+                         setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-6 py-3.5 hover:bg-slate-50 transition-colors flex flex-col border-b border-slate-50 last:border-0"
+                    >
+                       <span className="text-[15px] font-medium leading-tight">
+                        {highlightMatch(item.text, searchQuery)}
+                       </span>
+                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
+                        {item.category}
+                       </span>
+                    </button>
+                  ))}
+               </div>
+            )}
           </div>
           
           <div className="flex items-center gap-3 shrink-0">
@@ -128,16 +206,48 @@ export default function AppHome() {
           </div>
         </header>
 
-        {/* Mobile Search - only on mobile */}
-        <div className="bg-[#1b52d6] px-6 py-4 md:hidden shadow-lg shadow-brand/10">
-          <div className="bg-white rounded-xl flex items-center h-12 px-4 shadow-sm">
+        {/* Mobile Search with Suggestions */}
+        <div ref={searchRef} className="bg-[#1b52d6] px-6 py-4 md:hidden shadow-lg shadow-brand/10 z-[55] relative">
+          <div className={`bg-white rounded-xl flex items-center h-12 px-4 shadow-sm ${showSuggestions && searchQuery ? 'rounded-b-none' : ''}`}>
             <Search className="w-5 h-5 text-slate-300 mr-2" />
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => {
+                 setSearchQuery(e.target.value);
+                 setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
               placeholder={getSearchPlaceholder()} 
               className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold"
             />
+            {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="ml-2 text-slate-300"><X size={16} /></button>
+            )}
           </div>
+          
+          {/* Mobile Suggestions Dropdown */}
+          {showSuggestions && searchQuery && filteredSuggestions.length > 0 && (
+             <div className="absolute top-[4.5rem] left-6 right-6 bg-white shadow-2xl rounded-b-xl overflow-hidden z-[100] animate-in slide-in-from-top-1 duration-200">
+                {filteredSuggestions.map((item, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => {
+                       setSearchQuery(item.text);
+                       setShowSuggestions(false);
+                    }}
+                    className="w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors flex flex-col border-b border-slate-50 last:border-0"
+                  >
+                     <span className="text-[14px] font-medium leading-tight">
+                        {highlightMatch(item.text, searchQuery)}
+                     </span>
+                     <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">
+                        {item.category}
+                     </span>
+                  </button>
+                ))}
+             </div>
+          )}
         </div>
 
         {/* Dynamic View Container */}
@@ -161,12 +271,11 @@ export default function AppHome() {
           <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
         </div>
 
-        {/* Floating Mobile Bottom Nav */}
+        {/* ... (Bottom Nav keeps same) ... */}
         <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-white/95 backdrop-blur-md border-t border-slate-100 flex px-2 z-50 md:hidden justify-around items-center">
           <MobileNavLink icon={<Home size={22} />} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
           <MobileNavLink icon={<MessageCircle size={22} />} active={activeTab === 'chats'} onClick={() => setActiveTab('chats')} badge={2} />
           
-          {/* Mobile Center Plus */}
           <button 
             onClick={() => setIsListingModalOpen(true)}
             className="w-14 h-14 bg-[#1b52d6] text-white rounded-2xl shadow-xl shadow-brand/30 flex items-center justify-center transform -translate-y-4 hover:scale-110 active:scale-95 transition-all border-4 border-white"
