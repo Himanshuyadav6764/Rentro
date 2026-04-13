@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import {
-  Bell, BookOpen, Home, MessageCircle, Mic, MinusCircle, Plus, Search, User
+  Bell, 
+  BookOpen, 
+  Home, 
+  MessageCircle, 
+  Mic, 
+  MinusCircle, 
+  Plus, 
+  Search, 
+  User
 } from "lucide-react";
 import HomeView from "@/components/views/HomeView";
 import ChatsView from "@/components/views/ChatsView";
@@ -11,7 +19,7 @@ import ProfileView from "@/components/views/ProfileView";
 import CreateListingModal from "@/components/CreateListingModal";
 
 export default function AppHome() {
-  const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("profile");
+  const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("chats");
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
 
   const renderContent = () => {
@@ -28,114 +36,155 @@ export default function AppHome() {
     switch (activeTab) {
       case "chats": return "Search chats...";
       case "rentals": return "Search my rentals...";
-      case "profile": return "Search my rentals...";
+      case "profile": return "Search my profile...";
       default: return "Search books, calculators, laptops...";
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-white relative flex flex-col font-sans">
+    <div className="h-screen w-full bg-[#f8faff] relative flex flex-col md:flex-row font-sans overflow-hidden">
       
-      {/* Top Navbar */}
-      <header className="px-4 sm:px-8 py-3 flex items-center justify-between bg-white z-10 sticky top-0 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="bg-[#e8f5e9] p-2 rounded-lg relative">
-            <BookOpen className="text-emerald-500 w-6 h-6" />
-            <div className="absolute top-1/2 left-[-4px] w-2 h-4 bg-emerald-500 rounded-r-md"></div>
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden md:flex flex-col w-24 lg:w-64 bg-white border-r border-slate-100 z-50">
+        <div className="p-6 flex items-center gap-3 mb-8">
+          <div className="bg-[#1b52d6] p-2 rounded-xl text-white shadow-lg shadow-brand/20">
+            <BookOpen size={24} />
           </div>
-          <h1 className="text-[20px] font-bold text-[#1c2b4c] tracking-tight">StudentRental</h1>
+          <h1 className="hidden lg:block text-lg font-black text-slate-800 tracking-tighter">StudentRental</h1>
         </div>
-        
-        <div className="flex items-center gap-4 text-slate-600">
-          <button className="hover:bg-slate-100 p-2 rounded-full transition-colors hidden sm:block">
-            <Mic className="w-5 h-5 text-[#1c2b4c]" />
-          </button>
-          <button className="relative hover:bg-slate-100 p-2 rounded-full transition-colors">
-            <Bell className="w-5 h-5 text-[#6b7280]" fill="currentColor" stroke="none" />
-            <span className="absolute top-[6px] right-[8px] w-2.5 h-2.5 bg-red-500 border border-white rounded-full"></span>
-          </button>
-          <div className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center relative bg-gradient-to-br from-blue-100 to-indigo-100 cursor-pointer">
-            <User className="w-5 h-5 text-indigo-700 mt-1" />
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-orange-400 border border-white rounded-full"></span>
-          </div>
-        </div>
-      </header>
 
-      {/* Search Area */}
-      <div className="bg-[#1b52d6] px-4 sm:px-8 py-3.5 flex justify-center">
-        <div className="bg-white rounded-md flex items-center h-[46px] px-3 w-full max-w-4xl shadow-sm">
-          <Search className="w-5 h-5 text-slate-400 mr-2" />
-          <input 
-            type="text" 
-            placeholder={getSearchPlaceholder()} 
-            className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
+        <nav className="flex-1 px-4 flex flex-col gap-2">
+          <SidebarLink 
+            icon={<Home size={22} />} 
+            label="Home" 
+            isActive={activeTab === 'home'} 
+            onClick={() => setActiveTab('home')} 
           />
-          <button>
-            <Mic className="w-5 h-5 text-slate-400 ml-2" />
+          <SidebarLink 
+            icon={<MessageCircle size={22} />} 
+            label="Chats" 
+            isActive={activeTab === 'chats'} 
+            onClick={() => setActiveTab('chats')} 
+            badge={2}
+          />
+          <SidebarLink 
+            icon={<MinusCircle size={22} />} 
+            label="My Rentals" 
+            isActive={activeTab === 'rentals'} 
+            onClick={() => setActiveTab('rentals')} 
+            badge={1}
+          />
+          <SidebarLink 
+            icon={<User size={22} />} 
+            label="Profile" 
+            isActive={activeTab === 'profile'} 
+            onClick={() => setActiveTab('profile')} 
+          />
+        </nav>
+
+        <div className="p-6 mt-auto">
+          <button onClick={() => setIsListingModalOpen(true)} className="w-full bg-[#1b52d6] text-white p-3 lg:p-4 rounded-2xl font-black shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <Plus size={24} strokeWidth={3} />
+            <span className="hidden lg:block">LIST ITEM</span>
           </button>
         </div>
-      </div>
+      </aside>
 
-      {/* Dynamic Content View */}
-      <div className="flex-1 overflow-hidden h-full flex flex-col items-center">
-         <div className="w-full flex-1 flex flex-col h-full overflow-hidden relative">
-            {renderContent()}
-            <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
-         </div>
-      </div>
-
-      {/* Floating Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-[#fafafc] border-t border-slate-200 flex px-1 z-50 justify-center">
-        <div className="flex w-full h-full relative max-w-6xl">
-          
-          <button onClick={() => setActiveTab("home")} className={`flex-1 flex flex-col items-center justify-center gap-1 group transition ${activeTab === 'home' ? 'text-[#1b52d6]' : 'text-slate-500 hover:text-[#1b52d6]'}`}>
-            <Home className="w-[22px] h-[22px] currentColor" strokeWidth={2.5} />
-            <span className="text-[11px] font-bold">Home</span>
-          </button>
-          
-          <button onClick={() => setActiveTab("chats")} className={`flex-1 flex flex-col items-center justify-center gap-1 group relative transition ${activeTab === 'chats' ? 'text-[#1b52d6]' : 'text-slate-500 hover:text-[#1b52d6]'}`}>
-            <div className="relative">
-              <MessageCircle className="w-[22px] h-[22px] currentColor" strokeWidth={2} />
-              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-[1.5px] border-white rounded-full flex items-center justify-center text-[8px] text-white font-bold">2</div>
+      {/* Main Application Area */}
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        
+        {/* Top Navbar (Persistent on all views) */}
+        <header className="px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md z-40 border-b border-slate-50">
+          <div className="flex items-center gap-2 md:hidden">
+            <div className="bg-[#1b52d6] p-1.5 rounded-lg text-white">
+              <BookOpen size={20} />
             </div>
-            <span className="text-[11px] font-medium">Chats</span>
-          </button>
-
-          {/* Middle placeholder for perfect spacing */}
-          <div className="flex-[1.2] opacity-0 pointer-events-none"></div>
-
-          {/* Center Massive Action Button */}
-          <div className="absolute left-1/2 bottom-3 transform -translate-x-1/2 flex items-center justify-center z-30">
-            <div className="relative w-16 h-16 rounded-full flex items-center justify-center">
-               <div className="absolute inset-0 rounded-full" style={{
-                 background: 'conic-gradient(#1b52d6 0% 35%, #05a76e 35% 60%, #fdb528 60% 85%, #8cb3eb 85% 100%)',
-                 padding: '4px'
-               }}>
-                  <div className="w-full h-full bg-transparent rounded-full border-[3px] border-transparent" style={{ WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'xor', maskComposite: 'exclude' }}></div>
-               </div>
-               {/* Actual clickable button */}
-               <button onClick={() => setIsListingModalOpen(true)} className="absolute inset-[4px] bg-white rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-105 transition-transform active:scale-95">
-                 <Plus className="w-7 h-7 text-[#1b52d6]" strokeWidth={3} />
-               </button>
+            <h1 className="text-lg font-black text-slate-800 tracking-tighter">StudentRental</h1>
+          </div>
+          
+          {/* Desktop Search Center */}
+          <div className="hidden md:block flex-1 max-w-2xl mx-10">
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl flex items-center h-12 px-4 shadow-inner focus-within:ring-4 ring-brand/5 transition-all">
+              <Search className="w-5 h-5 text-slate-400 mr-2" />
+              <input 
+                type="text" 
+                placeholder={getSearchPlaceholder()} 
+                className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold placeholder:text-slate-300"
+              />
+              <button className="text-slate-300 hover:text-[#1b52d6] transition-colors"><Mic size={18} /></button>
             </div>
           </div>
-
-          <button onClick={() => setActiveTab("rentals")} className={`flex-1 flex flex-col items-center justify-center gap-1 group transition ${activeTab === 'rentals' ? 'text-[#1b52d6]' : 'text-slate-500 hover:text-[#1b52d6]'}`}>
-            <div className="relative">
-               <MinusCircle className="w-[22px] h-[22px] currentColor" strokeWidth={2} />
-               <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-[1.5px] border-white rounded-full flex items-center justify-center text-[8px] text-white font-bold">1</div>
-            </div>
-            <span className="text-[11px] font-medium">My Rentals</span>
-          </button>
           
-          <button onClick={() => setActiveTab("profile")} className={`flex-1 flex flex-col items-center justify-center gap-1 group transition ${activeTab === 'profile' ? 'text-[#1b52d6]' : 'text-slate-500 hover:text-[#1b52d6]'}`}>
-            <User className="w-[22px] h-[22px] currentColor" strokeWidth={2} />
-            <span className="text-[11px] font-medium">Profile</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <button className="p-2.5 rounded-xl hover:bg-slate-50 text-slate-400 relative">
+              <Bell size={20} fill="currentColor" className="opacity-20" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden hidden sm:flex items-center justify-center">
+              <User size={20} className="text-[#1b52d6] opacity-80" />
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile Search - only on mobile */}
+        <div className="bg-[#1b52d6] px-6 py-4 md:hidden shadow-lg shadow-brand/10">
+          <div className="bg-white rounded-xl flex items-center h-12 px-4 shadow-sm">
+            <Search className="w-5 h-5 text-slate-300 mr-2" />
+            <input 
+              type="text" 
+              placeholder={getSearchPlaceholder()} 
+              className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Dynamic View Container */}
+        <div className="flex-1 overflow-hidden relative pb-[72px] md:pb-0">
+          {renderContent()}
+          <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
+        </div>
+
+        {/* Floating Mobile Bottom Nav */}
+        <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-white/95 backdrop-blur-md border-t border-slate-100 flex px-2 z-50 md:hidden justify-around items-center">
+          <MobileNavLink icon={<Home size={22} />} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+          <MobileNavLink icon={<MessageCircle size={22} />} active={activeTab === 'chats'} onClick={() => setActiveTab('chats')} badge={2} />
+          
+          {/* Mobile Center Plus */}
+          <button 
+            onClick={() => setIsListingModalOpen(true)}
+            className="w-14 h-14 bg-[#1b52d6] text-white rounded-2xl shadow-xl shadow-brand/30 flex items-center justify-center transform -translate-y-4 hover:scale-110 active:scale-95 transition-all border-4 border-white"
+          >
+            <Plus size={28} strokeWidth={3} />
           </button>
 
+          <MobileNavLink icon={<MinusCircle size={22} />} active={activeTab === 'rentals'} onClick={() => setActiveTab('rentals')} />
+          <MobileNavLink icon={<User size={22} />} active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
         </div>
-      </div>
-
+      </main>
     </div>
+  );
+}
+
+function SidebarLink({ icon, label, isActive, onClick, badge }: { icon: any, label: string, isActive: boolean, onClick: () => void, badge?: number }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group ${isActive ? 'bg-[#1b52d6] text-white shadow-lg shadow-brand/20' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+    >
+      <div className={`${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform`}>{icon}</div>
+      <span className={`hidden lg:block font-black text-sm uppercase tracking-widest ${isActive ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
+      {badge && !isActive && (
+        <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black animate-pulse">{badge}</span>
+      )}
+    </button>
+  );
+}
+
+function MobileNavLink({ icon, active, onClick, badge }: { icon: any, active: boolean, onClick: () => void, badge?: number }) {
+  return (
+    <button onClick={onClick} className={`p-3 rounded-xl relative transition-all ${active ? 'text-[#1b52d6] bg-blue-50 scale-110' : 'text-slate-400 opacity-60'}`}>
+      {icon}
+      {badge && <span className="absolute top-2 right-2 w-4 h-4 bg-red-500 text-white text-[8px] rounded-full flex items-center justify-center font-black">{badge}</span>}
+    </button>
   );
 }
