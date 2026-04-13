@@ -107,6 +107,25 @@ export default function ProductDetailView({ productId, onBack }: ProductDetailVi
                </div>
             </div>
 
+            {/* Item Description Section */}
+            <div className="mb-12">
+               <h3 className="text-[13px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Description</h3>
+               <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm leading-relaxed text-slate-600 font-medium">
+                  <p className="mb-4">
+                     Experience extreme performance with the <span className="text-slate-900 font-bold">MacBook Pro M2</span>. This powerhouse is equipped with the latest M2 chip, making it perfect for intensive coding, 4K video editing, and complex engineering simulations. 
+                  </p>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 list-disc pl-5 text-[14px]">
+                     <li>8-Core CPU / 10-Core GPU</li>
+                     <li>16GB Unified Memory / 512GB SSD</li>
+                     <li>13.3-inch Retina Display</li>
+                     <li>Up to 20 hours battery life</li>
+                  </ul>
+                  <p className="mt-6 text-[13px] italic bg-brand/5 p-4 rounded-2xl border-l-4 border-brand">
+                     &quot;Please handle with care. The item comes with a protective sleeve and original charger. Return in original condition to ensure full deposit refund.&quot;
+                  </p>
+               </div>
+            </div>
+
             {/* Content Cards Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
                
