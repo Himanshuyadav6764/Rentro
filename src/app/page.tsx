@@ -145,19 +145,12 @@ export default function AppHome() {
             onClick={() => setActiveTab('rentals')}
             badge={1}
           />
-          <SidebarLink 
-            icon={<User size={22} />} 
-            label="Profile" 
-            isActive={activeTab === 'profile'} 
-            onClick={() => setActiveTab('profile')} 
+          <SidebarLink
+            icon={<User size={22} />}
+            label="Profile"
+            isActive={activeTab === 'profile'}
+            onClick={() => setActiveTab('profile')}
           />
-          <button 
-            onClick={() => setIsLoggedIn(false)}
-            className="flex items-center gap-4 p-4 rounded-2xl text-rose-400 hover:bg-rose-50 transition-all group mt-2"
-          >
-            <LogOut size={22} className="group-hover:scale-110 transition-transform" />
-            <span className="hidden lg:block font-black text-sm uppercase tracking-widest">Logout</span>
-          </button>
         </nav>
 
         <div className="p-6 mt-auto">
