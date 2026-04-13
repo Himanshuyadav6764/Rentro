@@ -17,7 +17,8 @@ import {
   Star,
   MapPin,
   Shield,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -30,6 +31,7 @@ interface ProductDetailViewProps {
 
 export default function ProductDetailView({ productId, onBack, onChatWithOwner, onRent }: ProductDetailViewProps) {
   const [isRenting, setIsRenting] = React.useState(false);
+  const [showFullSchedule, setShowFullSchedule] = React.useState(false);
 
   const handleRent = () => {
     setIsRenting(true);
@@ -42,6 +44,73 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
   return (
     <div className="fixed inset-0 z-[999] bg-white flex flex-col font-sans animate-in slide-in-from-bottom-10 duration-700">
       
+      {/* Full Schedule Modal */}
+      {showFullSchedule && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowFullSchedule(false)}></div>
+          <div className="relative w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-400">
+             <header className="px-10 py-8 flex items-center justify-between border-b border-slate-50 bg-white z-10">
+                <div>
+                   <h3 className="text-2xl font-black text-slate-800 tracking-tight">Availability Calendar</h3>
+                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">April 2026 • Full Schedule</p>
+                </div>
+                <button 
+                  onClick={() => setShowFullSchedule(false)} 
+                  className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all border border-slate-100 shadow-sm"
+                >
+                  <X size={24} strokeWidth={3} />
+                </button>
+             </header>
+
+             <div className="flex-1 overflow-y-auto p-10 space-y-8 scroll-smooth hide-scrollbar bg-[#f8faff]">
+                {/* Visual Legend */}
+                <div className="flex gap-6 mb-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                   <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30"></div>
+                      <span className="text-[12px] font-black text-slate-600 uppercase tracking-widest">Available</span>
+                   </div>
+                   <div className="flex items-center gap-2 opacity-40">
+                      <div className="w-4 h-4 rounded-full bg-slate-400"></div>
+                      <span className="text-[12px] font-black text-slate-600 uppercase tracking-widest">Booked</span>
+                   </div>
+                </div>
+
+                {/* Grid Calendar */}
+                <div className="grid grid-cols-7 gap-4 mb-10">
+                   {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(day => (
+                      <div key={day} className="text-center text-[11px] font-black text-slate-300 uppercase tracking-[0.2em] py-2">{day}</div>
+                   ))}
+                   {Array.from({ length: 30 }).map((_, i) => {
+                      const dayNumber = i + 1;
+                      const isAvailable = dayNumber >= 22 && dayNumber <= 26;
+                      
+                      return (
+                        <div 
+                          key={i} 
+                          className={`aspect-square rounded-[1.8rem] flex flex-col items-center justify-center gap-1.5 transition-all text-[18px] font-black relative group
+                            ${isAvailable ? 'bg-white border-2 border-emerald-500/10 shadow-sm' : 'bg-slate-100 border-2 border-transparent opacity-20'}
+                          `}
+                        >
+                           <span className={isAvailable ? 'text-slate-800' : 'text-slate-400'}>{dayNumber}</span>
+                           {isAvailable && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>}
+                        </div>
+                      );
+                   })}
+                </div>
+             </div>
+
+             <footer className="px-10 py-8 border-t border-slate-50 bg-white flex justify-end">
+                <button 
+                   onClick={() => setShowFullSchedule(false)}
+                   className="bg-[#002f34] text-white px-10 py-4 rounded-2xl font-black text-[14px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+                >
+                   Close Schedule
+                </button>
+             </footer>
+          </div>
+        </div>
+      )}
+
       {/* Top Navigation Bar - Truly Fixed and High Z-Index */}
       <div className="fixed top-0 left-0 right-0 z-[1000] px-6 py-6 flex items-center justify-between pointer-events-none">
          <button 
@@ -202,7 +271,10 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
             <div className="mb-12">
                <div className="flex items-center justify-between mb-8 px-4">
                   <h3 className="text-[18px] font-black text-slate-900 tracking-tight">Availability Index</h3>
-                  <button className="text-brand font-black text-[13px] uppercase tracking-widest flex items-center gap-2 group">
+                  <button 
+                    onClick={() => setShowFullSchedule(true)}
+                    className="text-brand font-black text-[13px] uppercase tracking-widest flex items-center gap-2 group"
+                  >
                      Full Schedule <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                </div>
