@@ -78,7 +78,12 @@ export default function AppHome() {
         if (!isLoggedIn) {
           return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
         }
-        return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
+        return (
+          <ProfileView 
+            onOpenSellModal={() => setIsListingModalOpen(true)} 
+            onLogout={() => setIsLoggedIn(false)}
+          />
+        );
       default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
     }
   };
