@@ -39,6 +39,7 @@ export default function AppHome() {
   const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("home");
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
 
   // Search state
@@ -66,6 +67,9 @@ export default function AppHome() {
       case "chats": return <ChatsView />;
       case "rentals": return <RentalsView />;
       case "profile": 
+        if (!isLoggedIn) {
+          return <LoginView onLogin={() => setIsLoggedIn(true)} />;
+        }
         return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
       default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
     }
@@ -134,6 +138,13 @@ export default function AppHome() {
             isActive={activeTab === 'profile'} 
             onClick={() => setActiveTab('profile')} 
           />
+          <button 
+            onClick={() => setIsLoggedIn(false)}
+            className="flex items-center gap-4 p-4 rounded-2xl text-rose-400 hover:bg-rose-50 transition-all group mt-2"
+          >
+            <LogOut size={22} className="group-hover:scale-110 transition-transform" />
+            <span className="hidden lg:block font-black text-sm uppercase tracking-widest">Logout</span>
+          </button>
         </nav>
 
         <div className="p-6 mt-auto">
