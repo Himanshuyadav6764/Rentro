@@ -119,7 +119,7 @@ export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfi
   );
 }
 
-function dropdownItem({ icon, label, className = "", badge }: { icon: React.ReactNode, label: string, className?: string, badge?: string }) {
+function DropdownItem({ icon, label, className = "", badge }: { icon: React.ReactNode, label: string, className?: string, badge?: string }) {
   return (
     <button className={`flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-all group ${className}`}>
        <div className="flex items-center gap-4">
