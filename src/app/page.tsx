@@ -61,16 +61,16 @@ export default function AppHome() {
     item.text.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (!isLoggedIn) {
-     return <LoginView onLogin={() => setIsLoggedIn(true)} />;
-  }
-
   const renderContent = () => {
     switch (activeTab) {
       case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
       case "chats": return <ChatsView />;
       case "rentals": return <RentalsView />;
-      case "profile": return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
+      case "profile": 
+        if (!isLoggedIn) {
+          return <LoginView onLogin={() => setIsLoggedIn(true)} />;
+        }
+        return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
       default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
     }
   };
@@ -223,9 +223,12 @@ export default function AppHome() {
               <Bell size={20} fill="currentColor" className="opacity-20" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden hidden sm:flex items-center justify-center">
+            <button 
+              onClick={() => setActiveTab("profile")}
+              className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden hidden sm:flex items-center justify-center hover:bg-blue-100 transition-all active:scale-95"
+            >
               <User size={20} className="text-[#1b52d6] opacity-80" />
-            </div>
+            </button>
           </div>
         </header>
 
