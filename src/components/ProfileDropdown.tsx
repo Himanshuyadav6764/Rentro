@@ -21,10 +21,11 @@ interface ProfileDropdownProps {
   isOpen: boolean;
   onClose: () => void;
   onLogout: () => void;
+  onViewProfile: () => void;
   userName: string;
 }
 
-export default function ProfileDropdown({ isOpen, onClose, onLogout, userName }: ProfileDropdownProps) {
+export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfile, userName }: ProfileDropdownProps) {
   if (!isOpen) return null;
 
   return (
@@ -46,7 +47,10 @@ export default function ProfileDropdown({ isOpen, onClose, onLogout, userName }:
 
       {/* View and Edit Profile Button */}
       <div className="px-5 py-4">
-         <button className="w-full bg-[#002f34] text-white py-3 rounded-lg font-bold text-[14px]">
+         <button 
+           onClick={onViewProfile}
+           className="w-full bg-[#002f34] text-white py-3 rounded-lg font-bold text-[14px] hover:opacity-90 active:scale-95 transition-all"
+         >
             View and edit profile
          </button>
       </div>

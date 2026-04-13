@@ -318,6 +318,10 @@ export default function AppHome() {
                 setIsProfileDropdownOpen(false);
                 setActiveTab("home");
              }}
+             onViewProfile={() => {
+                setActiveTab("profile");
+                setIsProfileDropdownOpen(false);
+             }}
              userName="Shekhar Kumar"
           />
         </div>
