@@ -45,7 +45,7 @@ const CAROUSEL_ITEMS = [
     title: "Safe and verified rentals for students.",
     icon: (
       <div className="flex items-center justify-center grayscale opacity-50">
-         < स्मार्टफोन size={64} />
+         <Smartphone size={64} />
       </div>
     )
   }
