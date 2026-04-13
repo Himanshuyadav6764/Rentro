@@ -12,6 +12,7 @@ import {
   Calendar, 
   CheckCircle2, 
   TrendingDown,
+  TrendingUp,
   Info,
   ChevronRight,
   Star,
