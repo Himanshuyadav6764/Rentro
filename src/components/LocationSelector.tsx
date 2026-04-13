@@ -91,16 +91,30 @@ export default function LocationSelector() {
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
+      // If no real API key, fallback to a readable coordinate string so it doesn't hang
+      if (API_KEY === "YOUR_API_KEY") {
+        console.warn("Using mock address: OpenCage API key is missing.");
+        setLocation({ address: `Campus (${lat.toFixed(2)}, ${lng.toFixed(2)})`, lat, lng });
+        setStatus(null);
+        return;
+      }
+
       const response = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${API_KEY}`);
       const data = await response.json();
+      
       if (data.results && data.results.length > 0) {
         const result = data.results[0];
-        const area = result.components.suburb || result.components.neighbourhood || result.components.city || "Unknown";
+        const area = result.components.suburb || result.components.neighbourhood || result.components.city || "Unknown Area";
         setLocation({ address: area, lat, lng });
         setStatus(null);
+      } else {
+        throw new Error("No results found");
       }
     } catch (err) {
-      console.error(err);
+      console.error("Geocoding failed:", err);
+      // Fallback to coordinates if API fails
+      setLocation({ address: `Area (${lat.toFixed(1)}, ${lng.toFixed(1)})`, lat, lng });
+      setStatus("Using Coordinates");
     } finally {
       setIsLoading(false);
     }
