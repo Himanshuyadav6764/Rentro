@@ -99,17 +99,27 @@ export default function LocationSelector() {
       const data = await response.json();
       
       if (data.address) {
-        // Pick the most relevant local area name
-        const area = data.address.suburb || 
-                     data.address.neighbourhood || 
-                     data.address.residential || 
-                     data.address.vihar || 
-                     data.address.colony || 
-                     data.address.city || 
-                     data.address.town || 
-                     "Current Location";
+        // Build a "Swiggy-style" full accurate address
+        const road = data.address.road || data.address.house_number;
+        const localArea = data.address.suburb || 
+                          data.address.neighbourhood || 
+                          data.address.residential || 
+                          data.address.sector ||
+                          data.address.colony;
+        const city = data.address.city || data.address.town || data.address.village;
+        
+        // Construct the final string
+        let fullAddress = "";
+        if (road && localArea) fullAddress = `${road}, ${localArea}`;
+        else if (localArea) fullAddress = localArea;
+        else if (road) fullAddress = road;
+        else fullAddress = city || "Unknown Location";
+
+        if (city && !fullAddress.includes(city)) {
+          fullAddress += `, ${city}`;
+        }
                      
-        setLocation({ address: area, lat, lng });
+        setLocation({ address: fullAddress, lat, lng });
         setStatus(null);
       } else {
         throw new Error("Address not found");
@@ -138,13 +148,27 @@ export default function LocationSelector() {
   };
 
   const handleSelectSuggestion = (res: any) => {
-    const area = res.address.suburb || 
-                 res.address.neighbourhood || 
-                 res.address.city || 
-                 res.display_name.split(',')[0];
+    // Construct full accurate address from result address object parts
+    const road = res.address.road || res.address.house_number;
+    const localArea = res.address.suburb || 
+                      res.address.neighbourhood || 
+                      res.address.residential || 
+                      res.address.sector ||
+                      res.address.colony;
+    const city = res.address.city || res.address.town || res.address.village;
+    
+    let fullAddress = "";
+    if (road && localArea) fullAddress = `${road}, ${localArea}`;
+    else if (localArea) fullAddress = localArea;
+    else if (road) fullAddress = road;
+    else fullAddress = city || res.display_name.split(',')[0];
+
+    if (city && !fullAddress.includes(city)) {
+      fullAddress += `, ${city}`;
+    }
                  
     setLocation({
-      address: area,
+      address: fullAddress,
       lat: parseFloat(res.lat),
       lng: parseFloat(res.lon)
     });
