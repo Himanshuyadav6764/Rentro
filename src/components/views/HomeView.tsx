@@ -65,7 +65,11 @@ const FEATURED_ITEMS = [
   }
 ];
 
-export default function HomeView() {
+interface HomeViewProps {
+  onSelectItem?: (id: string) => void;
+}
+
+export default function HomeView({ onSelectItem }: HomeViewProps) {
   return (
     <div className="flex-1 overflow-x-hidden bg-white pb-32 h-full overflow-y-auto hide-scrollbar sm:px-4">
       <div className="max-w-5xl mx-auto w-full">
@@ -140,7 +144,10 @@ export default function HomeView() {
 
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {FEATURED_ITEMS.map((item) => (
-                <div key={item.id} className="group bg-white rounded-[2rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
+                <div 
+                  key={item.id} 
+                  onClick={() => onSelectItem?.(item.id.toString())}
+                  className="group bg-white rounded-[2rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
                    <div className="w-full h-40 bg-slate-50 rounded-2xl overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                       <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md text-[11px] font-black px-3 py-1.5 rounded-xl shadow-sm">

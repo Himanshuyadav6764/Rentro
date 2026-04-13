@@ -17,7 +17,9 @@ import {
   ChevronRight,
   Star,
   Check,
-  X
+  X,
+  Camera,
+  Briefcase
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -54,35 +56,78 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
       {/* Background soft gradient overlay */}
       <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
 
-      {/* Edit Modal Overlay */}
+      {/* Modern Centered Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in slide-in-from-bottom-full duration-500">
-          <header className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-white sticky top-0">
-            <h3 className="text-xl font-bold text-slate-800 tracking-tight">Edit Profile</h3>
-            <button 
-              onClick={() => setIsEditing(false)} 
-              className="p-2 rounded-full hover:bg-slate-50 transition-colors"
-            >
-              <X size={24} className="text-slate-400" />
-            </button>
-          </header>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+          {/* Backdrop Blur */}
+          <div 
+             className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+             onClick={() => setIsEditing(false)}
+          ></div>
+          
+          <div className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-400">
+             <header className="px-8 py-6 flex items-center justify-between border-b border-slate-50 bg-white z-10">
+                <div>
+                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Profile Settings</h3>
+                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Update your personal information</p>
+                </div>
+                <button 
+                  onClick={() => setIsEditing(false)} 
+                  className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all"
+                >
+                  <X size={20} strokeWidth={3} />
+                </button>
+             </header>
 
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
-            <EditField label="Full Name" value={tempProfile.name} onChange={(v) => setTempProfile({...tempProfile, name: v})} />
-            <EditField label="Email Address" value={tempProfile.email} onChange={(v) => setTempProfile({...tempProfile, email: v})} />
-            <EditField label="Phone Number" value={tempProfile.phone} onChange={(v) => setTempProfile({...tempProfile, phone: v})} />
-            <EditField label="College" value={tempProfile.college} onChange={(v) => setTempProfile({...tempProfile, college: v})} />
-            <EditField label="Course" value={tempProfile.course} onChange={(v) => setTempProfile({...tempProfile, course: v})} />
+             <div className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth hide-scrollbar">
+                
+                {/* Avatar Section */}
+                <div className="flex flex-col items-center gap-4">
+                   <div className="relative group">
+                      <div className="w-24 h-24 rounded-[2rem] overflow-hidden border-4 border-slate-50 shadow-lg">
+                         <Image src={tempProfile.avatar} alt="Avatar Preview" width={96} height={96} className="object-cover" />
+                      </div>
+                      <button className="absolute -bottom-1 -right-1 bg-brand text-white p-2 rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all border-4 border-white">
+                         <Camera size={14} strokeWidth={3} />
+                      </button>
+                   </div>
+                   <span className="text-[10px] font-black text-brand uppercase tracking-widest">Change Photo</span>
+                </div>
+
+                {/* Form Sections */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <EditField label="Full Name" value={tempProfile.name} onChange={(v) => setTempProfile({...tempProfile, name: v})} icon={<User size={16} />} />
+                   <EditField label="Phone" value={tempProfile.phone} onChange={(v) => setTempProfile({...tempProfile, phone: v})} icon={<Smartphone size={16} />} />
+                </div>
+
+                <EditField label="Email Address" value={tempProfile.email} onChange={(v) => setTempProfile({...tempProfile, email: v})} icon={<Mail size={16} />} />
+
+                <div className="pt-6 border-t border-slate-50 flex items-center gap-2 mb-2">
+                   <GraduationCap size={18} className="text-brand" />
+                   <h4 className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em]">Academic Details</h4>
+                </div>
+
+                <div className="space-y-6">
+                   <EditField label="College Name" value={tempProfile.college} onChange={(v) => setTempProfile({...tempProfile, college: v})} icon={<ExternalLink size={16} />} />
+                   <EditField label="Course / Major" value={tempProfile.course} onChange={(v) => setTempProfile({...tempProfile, course: v})} icon={<Briefcase size={16} />} />
+                </div>
+             </div>
+
+             <footer className="px-8 py-6 border-t border-slate-50 bg-slate-50/50 backdrop-blur-sm flex items-center gap-4">
+                <button 
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-all text-sm uppercase tracking-wider"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSave}
+                  className="flex-[2] bg-brand text-white py-4 rounded-2xl font-black shadow-xl shadow-brand/30 hover:scale-[1.02] active:scale-95 transition-all text-sm uppercase tracking-widest"
+                >
+                  Save Changes
+                </button>
+             </footer>
           </div>
-
-          <footer className="p-6 border-t border-slate-100 bg-white">
-            <button 
-              onClick={handleSave}
-              className="w-full bg-brand text-white py-4 rounded-xl font-bold shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all text-sm uppercase tracking-wider"
-            >
-              Update Profile
-            </button>
-          </footer>
         </div>
       )}
 
@@ -146,11 +191,11 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
 
       {/* Details Section */}
       <div className="px-6 flex flex-col gap-3 mb-10">
-        <DetailCard icon={<User size={18} />} value="Full Name" />
-        <DetailCard icon={<Mail size={18} />} value={profile.email} />
-        <DetailCard icon={<Smartphone size={18} />} value={profile.phone} />
-        <DetailCard icon={<GraduationCap size={18} />} value={profile.college} />
-        <DetailCard icon={<BookOpen size={18} />} value={profile.course} />
+        <DetailCard icon={<User size={18} />} value={profile.name} label="Full Name" />
+        <DetailCard icon={<Mail size={18} />} value={profile.email} label="Email Address" />
+        <DetailCard icon={<Smartphone size={18} />} value={profile.phone} label="Phone Number" />
+        <DetailCard icon={<GraduationCap size={18} />} value={profile.college} label="College Name" />
+        <DetailCard icon={<BookOpen size={18} />} value={profile.course} label="Course / Major" />
       </div>
 
       {/* AI Trust Section */}
@@ -180,7 +225,7 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
              <div className="flex items-center gap-2">
                 <span className="text-[13px] font-medium text-slate-500">Risk Level: <span className="text-[#219653] font-bold">Low</span></span>
                 <div className="bg-[#4caf50] rounded-full p-0.5 text-white">
-                  <Check size={10} strokeWidth={4} />
+                   <Check size={10} strokeWidth={4} />
                 </div>
              </div>
           </div>
@@ -191,27 +236,33 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
   );
 }
 
-function DetailCard({ icon, value }: { icon: React.ReactNode, value: string }) {
+function DetailCard({ icon, value, label }: { icon: React.ReactNode, value: string, label: string }) {
   return (
-    <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_4px_10px_rgba(0,0,0,0.02)] group hover:border-brand/40 transition-all cursor-pointer">
-      <div className="w-10 h-10 flex items-center justify-center bg-[#f0f4f8] rounded-xl text-slate-500 group-hover:text-brand bg-gradient-to-br from-slate-50 to-slate-100 group-hover:from-blue-50 group-hover:to-blue-100 transition-all">
+    <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_4px_10px_rgba(0,0,0,0.02)] group hover:border-brand/40 transition-all cursor-pointer overflow-hidden">
+      <div className="w-12 h-12 flex items-center justify-center bg-[#f0f4f8] rounded-xl text-slate-500 group-hover:text-brand bg-gradient-to-br from-slate-50 to-slate-100 group-hover:from-blue-50 group-hover:to-blue-100 transition-all shrink-0">
         {icon}
       </div>
-      <span className="text-[15px] font-bold text-slate-600 group-hover:text-slate-800 transition-colors truncate">{value}</span>
+      <div className="flex flex-col min-w-0">
+         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+         <span className="text-[15px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors truncate">{value}</span>
+      </div>
     </div>
   );
 }
 
-function EditField({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
+function EditField({ label, value, onChange, icon }: { label: string, value: string, onChange: (v: string) => void, icon?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2 scale-in animate-in duration-300">
-      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
-      <input 
-        type="text" 
-        value={value} 
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-slate-50 border border-slate-200/50 p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 ring-brand/5 focus:border-brand/30 transition-all border-dashed"
-      />
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+      <div className="relative flex items-center group">
+         {icon && <div className="absolute left-4 text-slate-300 group-focus-within:text-brand transition-colors">{icon}</div>}
+         <input 
+            type="text" 
+            value={value} 
+            onChange={(e) => onChange(e.target.value)}
+            className={`w-full bg-slate-50 border border-slate-100 p-4 ${icon ? 'pl-11' : 'pl-4'} rounded-2xl font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 ring-brand/5 focus:border-brand/30 transition-all`}
+         />
+      </div>
     </div>
   );
 }

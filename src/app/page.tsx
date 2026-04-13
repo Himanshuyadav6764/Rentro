@@ -16,19 +16,21 @@ import HomeView from "@/components/views/HomeView";
 import ChatsView from "@/components/views/ChatsView";
 import RentalsView from "@/components/views/RentalsView";
 import ProfileView from "@/components/views/ProfileView";
+import ProductDetailView from "@/components/views/ProductDetailView";
 import CreateListingModal from "@/components/CreateListingModal";
 
 export default function AppHome() {
   const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("chats");
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const renderContent = () => {
     switch (activeTab) {
-      case "home": return <HomeView />;
+      case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
       case "chats": return <ChatsView />;
       case "rentals": return <RentalsView />;
       case "profile": return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
-      default: return <HomeView />;
+      default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
     }
   };
 
@@ -141,6 +143,21 @@ export default function AppHome() {
         {/* Dynamic View Container */}
         <div className="flex-1 overflow-hidden relative pb-[72px] md:pb-0">
           {renderContent()}
+          {selectedProductId && (
+            <ProductDetailView 
+              productId={selectedProductId} 
+              onBack={() => setSelectedProductId(null)} 
+              onChatWithOwner={() => {
+                setSelectedProductId(null);
+                setActiveTab("chats");
+              }}
+              onRent={() => {
+                alert("Rental Request Sent Successfully! The owner will contact you shortly.");
+                setSelectedProductId(null);
+                setActiveTab("rentals");
+              }}
+            />
+          )}
           <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
         </div>
 
