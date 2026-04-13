@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { 
   User, 
   ChevronRight,
@@ -26,10 +26,28 @@ interface ProfileDropdownProps {
 }
 
 export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfile, userName }: ProfileDropdownProps) {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="absolute top-16 right-6 w-full max-w-[320px] bg-white z-[2000] shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 rounded-xl overflow-hidden flex flex-col animate-in slide-in-from-top-4 duration-300">
+    <div 
+      ref={dropdownRef}
+      className="absolute top-14 right-6 w-full max-w-[320px] bg-white z-[2000] shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 rounded-xl overflow-hidden flex flex-col animate-in slide-in-from-top-4 duration-300"
+    >
       
       {/* Header Section */}
       <div className="px-5 pt-6 pb-4 flex items-center gap-4">
