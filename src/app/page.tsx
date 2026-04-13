@@ -147,6 +147,15 @@ export default function AppHome() {
             <ProductDetailView 
               productId={selectedProductId} 
               onBack={() => setSelectedProductId(null)} 
+              onChatWithOwner={() => {
+                setSelectedProductId(null);
+                setActiveTab("chats");
+              }}
+              onRent={() => {
+                alert("Rental Request Sent Successfully! The owner will contact you shortly.");
+                setSelectedProductId(null);
+                setActiveTab("rentals");
+              }}
             />
           )}
           <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />

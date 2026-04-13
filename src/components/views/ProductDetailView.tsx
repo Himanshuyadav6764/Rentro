@@ -24,9 +24,21 @@ import Image from 'next/image';
 interface ProductDetailViewProps {
   productId?: string;
   onBack: () => void;
+  onChatWithOwner?: () => void;
+  onRent?: () => void;
 }
 
-export default function ProductDetailView({ productId, onBack }: ProductDetailViewProps) {
+export default function ProductDetailView({ productId, onBack, onChatWithOwner, onRent }: ProductDetailViewProps) {
+  const [isRenting, setIsRenting] = React.useState(false);
+
+  const handleRent = () => {
+    setIsRenting(true);
+    setTimeout(() => {
+      setIsRenting(false);
+      onRent?.();
+    }, 1500);
+  };
+
   return (
     <div className="fixed inset-0 z-[999] bg-white flex flex-col font-sans animate-in slide-in-from-bottom-10 duration-700">
       
@@ -223,14 +235,23 @@ export default function ProductDetailView({ productId, onBack }: ProductDetailVi
             </div>
 
             <div className="flex flex-1 md:flex-none items-center gap-5 pr-2">
-               <button className="flex-1 md:w-[320px] min-h-[80px] bg-brand text-white rounded-[2.2rem] font-black text-xl tracking-tight shadow-[0_20px_50px_rgba(27,82,214,0.4)] hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center gap-4 group px-10">
-                  RENT NOW
-                  <div className="bg-white/20 p-2 rounded-full group-hover:translate-x-1.5 transition-transform">
-                     <ArrowRight size={22} strokeWidth={3} />
-                  </div>
+               <button 
+                 onClick={handleRent}
+                 disabled={isRenting}
+                 className={`flex-1 md:w-[320px] min-h-[80px] rounded-[2.2rem] font-black text-xl tracking-tight shadow-[0_20px_50px_rgba(27,82,214,0.4)] hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center gap-4 group px-10 ${isRenting ? 'bg-slate-400 cursor-wait' : 'bg-brand text-white'}`}
+               >
+                  {isRenting ? 'PROCESSING...' : 'RENT NOW'}
+                  {!isRenting && (
+                    <div className="bg-white/20 p-2 rounded-full group-hover:translate-x-1.5 transition-transform">
+                       <ArrowRight size={22} strokeWidth={3} />
+                    </div>
+                  )}
                </button>
                
-               <button className="w-20 h-20 bg-slate-100/50 border border-slate-200 rounded-[2.2rem] flex items-center justify-center text-slate-600 hover:bg-brand/10 hover:text-brand transition-all hover:border-brand/20 group">
+               <button 
+                 onClick={onChatWithOwner}
+                 className="w-20 h-20 bg-slate-100/50 border border-slate-200 rounded-[2.2rem] flex items-center justify-center text-slate-600 hover:bg-brand/10 hover:text-brand transition-all hover:border-brand/20 group"
+               >
                   <MessageCircle size={32} strokeWidth={2.5} className="group-hover:scale-110 transition-all" />
                </button>
             </div>
