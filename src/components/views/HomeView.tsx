@@ -16,10 +16,11 @@ export default function HomeView() {
 
         {/* Categories */}
         <div className="px-4 sm:px-8 py-4">
-          <div className="flex justify-start sm:justify-center items-start gap-6 sm:gap-10 overflow-x-auto hide-scrollbar pb-2">
+          <div className="flex justify-start items-start gap-4 sm:gap-6 overflow-x-auto hide-scrollbar pb-3 px-2 sm:px-0">
             
-            <div className="flex flex-col items-center gap-2 min-w-[72px]">
-              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+            {/* Academic */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
                  <div className="relative">
                     <div className="w-8 h-[6px] bg-blue-800 rounded mb-0.5 transform -skew-x-[20deg]"></div>
                     <div className="w-9 h-[6px] bg-emerald-700 rounded mb-0.5 transform -skew-x-[20deg]"></div>
@@ -27,55 +28,140 @@ export default function HomeView() {
                     <div className="w-11 h-[6px] bg-red-800 rounded transform -skew-x-[20deg]"></div>
                  </div>
               </div>
-              <span className="text-xs font-medium text-slate-700">Books</span>
+              <span className="text-xs font-medium text-slate-700">Academic</span>
             </div>
 
-            <div className="flex flex-col items-center gap-2 min-w-[72px]">
-              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+            {/* Electronics */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
                 <div className="relative flex flex-col items-center">
                   <div className="w-10 h-7 bg-sky-200 border-2 border-slate-700 rounded-t-lg relative overflow-hidden">
                      <div className="absolute inset-0 bg-white opacity-20 transform -rotate-45 scale-150 translate-x-3"></div>
                   </div>
-                  <div className="w-12 h-1.5 bg-slate-400 rounded-b-md"></div>
+                  <div className="w-12 h-1.5 bg-slate-400 rounded-b-md shadow-sm"></div>
                 </div>
               </div>
-              <span className="text-xs font-medium text-slate-700">Laptops</span>
+              <span className="text-xs font-medium text-slate-700">Electronics</span>
             </div>
 
-            <div className="flex flex-col items-center gap-2 min-w-[72px]">
-              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
-                <div className="w-7 h-9 bg-slate-700 rounded-sm flex flex-col items-center pt-1 px-1">
-                  <div className="w-full h-2.5 bg-cyan-100 rounded-[2px] mb-1"></div>
-                  <div className="grid grid-cols-3 gap-[2px] w-full">
-                    {[...Array(12)].map((_, i) => (
-                      <div key={i} className={`w-1.5 h-1.5 rounded-[1px] ${i >= 9 ? 'bg-orange-400' : 'bg-slate-400'}`}></div>
-                    ))}
+            {/* Furniture */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative flex flex-col items-center mt-2">
+                  <div className="w-8 h-2 bg-[#8b5a2b] rounded-sm shadow-sm z-10"></div>
+                  <div className="flex gap-4 absolute top-2">
+                     <div className="w-1.5 h-6 bg-[#6b4423] rounded-b-sm"></div>
+                     <div className="w-1.5 h-6 bg-[#6b4423] rounded-b-sm"></div>
                   </div>
+                  <div className="absolute bottom-[4px] w-6 h-8 bg-[#8b5a2b] rounded-md -z-10 translate-y-[-100%] shadow-sm"></div>
                 </div>
               </div>
-              <span className="text-xs font-medium text-slate-700">Calculators</span>
+              <span className="text-xs font-medium text-slate-700">Furniture</span>
             </div>
 
-            <div className="flex flex-col items-center gap-2 min-w-[72px]">
-              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
-                <div className="w-6 h-10 bg-[#284b82] border-2 border-slate-800 rounded-[4px] relative">
-                  <div className="absolute top-[2px] left-1/2 transform -translate-x-1/2 w-2 h-[2px] bg-slate-800 rounded-full"></div>
+            {/* Clothing */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative">
+                   <div className="w-10 h-10 bg-indigo-500 rounded-lg relative overflow-hidden shadow-sm">
+                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-4 h-2 bg-[#f0f4f8] rounded-b-full"></div>
+                      <div className="absolute top-0 left-[-4px] w-4 h-4 bg-[#f0f4f8] transform rotate-45"></div>
+                      <div className="absolute top-0 right-[-4px] w-4 h-4 bg-[#f0f4f8] transform -rotate-45"></div>
+                   </div>
                 </div>
               </div>
-              <span className="text-xs font-medium text-slate-700">Phones</span>
+              <span className="text-xs font-medium text-slate-700">Clothing</span>
             </div>
 
-            <div className="flex flex-col items-center gap-2 min-w-[72px]">
-              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 relative">
-                <div className="flex flex-col items-center translate-y-1">
-                   <div className="w-4 h-3 bg-yellow-200 clip-path-lamp transform -rotate-12 translate-x-2 translate-y-1"></div>
-                   <div className="w-0.5 h-4 bg-slate-400 translate-x-3 transform rotate-12"></div>
-                   <div className="w-3 h-1 bg-slate-800 rounded-t-sm translate-x-2"></div>
-                   <div className="absolute right-2 bottom-3 w-6 h-4 bg-blue-500 rounded-sm"></div>
-                   <div className="absolute right-1 bottom-3 w-3 h-2 bg-blue-300"></div>
+            {/* Transport */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative w-12 h-8 mt-2">
+                   <div className="absolute bottom-0 left-0 w-4 h-4 border-[3px] border-slate-700 rounded-full flex items-center justify-center"><div className="w-1 h-1 bg-slate-400 rounded-full"></div></div>
+                   <div className="absolute bottom-0 right-0 w-4 h-4 border-[3px] border-slate-700 rounded-full flex items-center justify-center"><div className="w-1 h-1 bg-slate-400 rounded-full"></div></div>
+                   <div className="absolute bottom-2 left-2 w-8 h-1 bg-[#219653] transform -rotate-12 rounded-full"></div>
+                   <div className="absolute bottom-2 right-2 w-1 h-6 bg-[#219653] transform rotate-12 rounded-full"></div>
+                   <div className="absolute top-[-2px] right-2 w-2 h-1.5 bg-slate-800 rounded-sm"></div>
                 </div>
               </div>
-              <span className="text-xs font-medium text-slate-700">Essentials</span>
+              <span className="text-xs font-medium text-slate-700">Transport</span>
+            </div>
+
+            {/* Entertainment */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative w-11 h-7 bg-[#ff5e5e] rounded-full flex items-center justify-between px-2 shadow-sm">
+                   <div className="w-3 h-3 bg-[#cc0000] rounded-full flex items-center justify-center relative shadow-inner">
+                     <div className="w-full h-[1.5px] bg-white/70 absolute"></div>
+                     <div className="w-[1.5px] h-full bg-white/70 absolute"></div>
+                   </div>
+                   <div className="flex gap-0.5 transform rotate-45">
+                     <div className="w-1.5 h-1.5 bg-yellow-300 rounded-full shadow-sm"></div>
+                     <div className="w-1.5 h-1.5 bg-blue-300 rounded-full shadow-sm"></div>
+                   </div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-slate-700">Entertainment</span>
+            </div>
+
+            {/* Services */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative flex flex-col items-center">
+                   <div className="w-8 h-6 bg-amber-400 rounded-t-xl relative flex items-center justify-center overflow-hidden shadow-sm">
+                     <div className="absolute bottom-[-6px] w-7 h-7 bg-[#f0f4f8] rounded-full"></div>
+                   </div>
+                   <div className="w-3 h-5 bg-slate-500 rounded-b-md shadow-sm"></div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-slate-700">Services</span>
+            </div>
+
+            {/* Projects */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative w-9 h-9 bg-slate-800 rounded-md border-2 border-[#10b981] flex items-center justify-center p-1 shadow-md">
+                   <div className="w-full h-full border border-slate-600 flex flex-col justify-between p-0.5">
+                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+                      <div className="w-1 h-1 bg-slate-400 rounded-full self-end"></div>
+                   </div>
+                   {/* Pins */}
+                   <div className="absolute top-[-4px] left-1 w-1 h-2 bg-yellow-500 rounded-t-[1px]"></div>
+                   <div className="absolute top-[-4px] left-4 w-1 h-2 bg-yellow-500 rounded-t-[1px]"></div>
+                   <div className="absolute top-[-4px] right-1 w-1 h-2 bg-yellow-500 rounded-t-[1px]"></div>
+                   <div className="absolute bottom-[-4px] left-1 w-1 h-2 bg-yellow-500 rounded-b-[1px]"></div>
+                   <div className="absolute bottom-[-4px] left-4 w-1 h-2 bg-yellow-500 rounded-b-[1px]"></div>
+                   <div className="absolute bottom-[-4px] right-1 w-1 h-2 bg-yellow-500 rounded-b-[1px]"></div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-slate-700">Projects</span>
+            </div>
+
+            {/* Events */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative flex flex-col items-center">
+                   <div className="w-7 h-8 bg-pink-500 rounded-full rounded-b-lg relative overflow-hidden shadow-sm">
+                     <div className="w-2 h-4 bg-white/30 rounded-full absolute top-1 left-1 transform rotate-12"></div>
+                   </div>
+                   <div className="w-[3px] h-1.5 bg-pink-600 rounded-sm"></div>
+                   <div className="w-[1px] h-4 bg-slate-400 transform -rotate-12 translate-x-1"></div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-slate-700">Events</span>
+            </div>
+
+            {/* Others */}
+            <div className="flex flex-col items-center gap-2 min-w-[72px] sm:min-w-[85px]">
+              <div className="w-[72px] h-[72px] bg-[#f0f4f8] rounded-xl flex items-center justify-center shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition cursor-pointer">
+                <div className="relative w-8 h-8 bg-[#c2a381] border-2 border-[#8b6134] rounded-sm flex justify-center pt-1 shadow-sm">
+                   <div className="w-[90%] h-1 bg-[#8b6134] opacity-80 relative">
+                     <div className="absolute top-[-2px] left-1/2 transform -translate-x-1/2 w-3 h-1.5 bg-[#fbc02d]"></div>
+                   </div>
+                   <div className="absolute inset-0 bg-[#8b6134] opacity-20 transform rotate-12"></div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-slate-700">Others</span>
             </div>
 
           </div>

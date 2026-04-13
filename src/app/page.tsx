@@ -19,7 +19,7 @@ export default function AppHome() {
       case "home": return <HomeView />;
       case "chats": return <ChatsView />;
       case "rentals": return <RentalsView />;
-      case "profile": return <ProfileView />;
+      case "profile": return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
       default: return <HomeView />;
     }
   };

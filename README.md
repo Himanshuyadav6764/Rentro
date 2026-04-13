@@ -24,6 +24,9 @@ Update `.env.local` values:
 - `JWT_SECRET`: strong secret string
 - `GOOGLE_CLIENT_ID`: Google OAuth Web Client ID
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: same Google client ID for frontend button
+- `CLOUDINARY_CLOUD_NAME`: Cloudinary cloud name
+- `CLOUDINARY_API_KEY`: Cloudinary API key
+- `CLOUDINARY_API_SECRET`: Cloudinary API secret
 
 ## 2) Run
 
@@ -34,6 +37,13 @@ npm run dev
 Open http://localhost:3000
 
 ## Auth APIs
+
+## Image Upload API
+
+- `POST /api/upload`
+  - body: multipart form-data with `file`
+  - uploads image to Cloudinary folder `rentro_uploads`
+  - returns `{ "url": "https://..." }`
 
 - `POST /api/auth/send-otp`
   - body: `{ "phone": "+919876543210" }`

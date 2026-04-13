@@ -1,11 +1,14 @@
-import React from 'react';
 import { 
   Home, MessageCircle, ShieldCheck, FileText, 
   CreditCard, Shield, User, MapPin, CheckCircle2, 
   ChevronDown, Settings, Bell, Star, FileQuestion, ChevronRight
 } from 'lucide-react';
 
-export default function ProfileView() {
+interface ProfileViewProps {
+  onOpenSellModal?: () => void;
+}
+
+export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
   return (
     <div className="w-full bg-[#f8fafe] flex font-sans max-w-7xl mx-auto h-full overflow-hidden pb-16">
       
@@ -23,9 +26,9 @@ export default function ProfileView() {
           <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#1c2b4c] font-medium hover:bg-slate-100 rounded-md">
              <MessageCircle className="w-[18px] h-[18px] text-[#1c2b4c]" /> Chats
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#1c2b4c] font-medium hover:bg-slate-100 rounded-md">
+          <button onClick={onOpenSellModal} className="w-full flex items-center gap-3 px-3 py-2.5 text-[#1c2b4c] font-medium hover:bg-slate-100 rounded-md text-left">
              <ShieldCheck className="w-[18px] h-[18px] text-[#1c2b4c]" /> Sell
-          </a>
+          </button>
           <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#1c2b4c] font-medium hover:bg-slate-100 rounded-md">
              <FileText className="w-[18px] h-[18px] text-[#1c2b4c]" /> My Rentals
           </a>
