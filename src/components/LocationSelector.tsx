@@ -91,30 +91,34 @@ export default function LocationSelector() {
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
-      // If no real API key, fallback to a readable coordinate string so it doesn't hang
-      if (API_KEY === "YOUR_API_KEY") {
-        console.warn("Using mock address: OpenCage API key is missing.");
-        setLocation({ address: `Campus (${lat.toFixed(2)}, ${lng.toFixed(2)})`, lat, lng });
-        setStatus(null);
-        return;
-      }
-
-      const response = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${API_KEY}`);
+      // Switched to Nominatim (OpenStreetMap) - No API Key required for basic usage
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
       const data = await response.json();
       
-      if (data.results && data.results.length > 0) {
-        const result = data.results[0];
-        const area = result.components.suburb || result.components.neighbourhood || result.components.city || "Unknown Area";
+      if (data.address) {
+        // Pick the most relevant local area name
+        const area = data.address.suburb || 
+                     data.address.neighbourhood || 
+                     data.address.residential || 
+                     data.address.vihar || 
+                     data.address.colony || 
+                     data.address.city || 
+                     data.address.town || 
+                     "Current Location";
+                     
         setLocation({ address: area, lat, lng });
         setStatus(null);
       } else {
-        throw new Error("No results found");
+        throw new Error("Address not found");
       }
     } catch (err) {
       console.error("Geocoding failed:", err);
-      // Fallback to coordinates if API fails
-      setLocation({ address: `Area (${lat.toFixed(1)}, ${lng.toFixed(1)})`, lat, lng });
-      setStatus("Using Coordinates");
+      // Final fallback to coords if everything fails
+      setLocation({ address: `${lat.toFixed(2)}, ${lng.toFixed(2)}`, lat, lng });
+      setStatus("Using GPS");
     } finally {
       setIsLoading(false);
     }
@@ -122,20 +126,27 @@ export default function LocationSelector() {
 
   const fetchSuggestions = async (query: string) => {
     try {
-      const response = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=${API_KEY}`);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
       const data = await response.json();
-      setSuggestions(data.results || []);
+      setSuggestions(data || []);
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleSelectSuggestion = (res: any) => {
-    const area = res.components.suburb || res.components.neighbourhood || res.components.city || res.formatted;
+    const area = res.address.suburb || 
+                 res.address.neighbourhood || 
+                 res.address.city || 
+                 res.display_name.split(',')[0];
+                 
     setLocation({
       address: area,
-      lat: res.geometry.lat,
-      lng: res.geometry.lng
+      lat: parseFloat(res.lat),
+      lng: parseFloat(res.lon)
     });
     setSearchQuery("");
     setSuggestions([]);
@@ -196,8 +207,10 @@ export default function LocationSelector() {
               >
                 <MapPinIcon size={16} className="text-slate-300 mt-1" />
                 <div className="flex-1">
-                   <p className="text-[13px] font-bold text-slate-700">{res.components.suburb || res.components.city || "Unknown"}</p>
-                   <p className="text-[11px] text-slate-400 truncate">{res.formatted}</p>
+                   <p className="text-[13px] font-bold text-slate-700">
+                    {res.address.suburb || res.address.neighbourhood || res.address.city || res.display_name.split(',')[0]}
+                   </p>
+                   <p className="text-[11px] text-slate-400 truncate">{res.display_name}</p>
                 </div>
               </button>
             ))}
