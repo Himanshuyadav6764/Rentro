@@ -68,7 +68,7 @@ export default function AppHome() {
       case "rentals": return <RentalsView />;
       case "profile": 
         if (!isLoggedIn) {
-          return <LoginView onLogin={() => setIsLoggedIn(true)} />;
+          return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
         }
         return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
       default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
