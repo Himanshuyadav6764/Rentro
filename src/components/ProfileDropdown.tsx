@@ -77,15 +77,15 @@ export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfi
 
       {/* Menu List */}
       <div className="flex flex-col max-h-[400px] overflow-y-auto hide-scrollbar">
-         <dropdownItem icon={<List size={18} />} label="My ADS" />
-         <dropdownItem icon={<ClipboardList size={18} />} label="Buy Business Packages" />
-         <dropdownItem icon={<ShoppingCart size={18} />} label="View Cart" />
-         <dropdownItem icon={<CreditCard size={18} />} label="Bought Packages & Billing" />
-         <dropdownItem icon={<Star size={18} />} label="Become an Elite Buyer" className="bg-blue-50/30" />
+         <DropdownItem icon={<List size={18} />} label="My ADS" />
+         <DropdownItem icon={<ClipboardList size={18} />} label="Buy Business Packages" />
+         <DropdownItem icon={<ShoppingCart size={18} />} label="View Cart" />
+         <DropdownItem icon={<CreditCard size={18} />} label="Bought Packages & Billing" />
+         <DropdownItem icon={<Star size={18} />} label="Become an Elite Buyer" className="bg-blue-50/30" />
          
          <div className="w-full h-[1px] bg-slate-100"></div>
          
-         <dropdownItem 
+         <DropdownItem 
             icon={<ShieldCheck size={18} />} 
             label="Become an Elite Seller" 
             className="bg-blue-50/30"
@@ -94,8 +94,8 @@ export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfi
 
          <div className="w-full h-[1px] bg-slate-100"></div>
 
-         <dropdownItem icon={<HelpCircle size={18} />} label="Help" />
-         <dropdownItem icon={<Settings size={18} />} label="Settings" />
+         <DropdownItem icon={<HelpCircle size={18} />} label="Help" />
+         <DropdownItem icon={<Settings size={18} />} label="Settings" />
          
          <button className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-all group">
             <div className="flex items-center gap-4">
