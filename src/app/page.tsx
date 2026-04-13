@@ -23,6 +23,7 @@ import ProductDetailView from "@/components/views/ProductDetailView";
 import CreateListingModal from "@/components/CreateListingModal";
 import LoginView from "@/components/views/LoginView";
 import WishlistSidebar from "@/components/WishlistSidebar";
+import ProfileDropdown from "@/components/ProfileDropdown";
 
 const MOCK_SUGGESTIONS = [
   { text: "Phone", category: "MOBILE PHONES" },
@@ -41,6 +42,7 @@ export default function AppHome() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -230,7 +232,13 @@ export default function AppHome() {
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             <button 
-              onClick={() => setActiveTab("profile")}
+              onClick={() => {
+                if (!isLoggedIn) {
+                  setActiveTab("profile");
+                } else {
+                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                }
+              }}
               className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden hidden sm:flex items-center justify-center hover:bg-blue-100 transition-all active:scale-95"
             >
               <User size={20} className="text-[#1b52d6] opacity-80" />
@@ -302,6 +310,16 @@ export default function AppHome() {
           )}
           <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
           <WishlistSidebar isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
+          <ProfileDropdown 
+             isOpen={isProfileDropdownOpen} 
+             onClose={() => setIsProfileDropdownOpen(false)} 
+             onLogout={() => {
+                setIsLoggedIn(false);
+                setIsProfileDropdownOpen(false);
+                setActiveTab("home");
+             }}
+             userName="Shekhar Kumar"
+          />
         </div>
 
         {/* ... (Bottom Nav keeps same) ... */}
