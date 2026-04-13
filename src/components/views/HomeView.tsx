@@ -20,9 +20,23 @@ import {
   Gamepad,
   Wrench,
   Zap,
-  Calendar
+  Calendar,
+  X
 } from 'lucide-react';
 import Image from 'next/image';
+
+const SUB_CATEGORIES = [
+  { name: "TVs, Video - Audio", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&q=80&w=200" },
+  { name: "Kitchen Appliances", image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=200" },
+  { name: "Computers & Laptops", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&q=80&w=200" },
+  { name: "Cameras & Lenses", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=200" },
+  { name: "Games & Entertainment", image: "https://images.unsplash.com/photo-1605898962319-19451a74219f?auto=format&fit=crop&q=80&w=200" },
+  { name: "Fridges", image: "https://images.unsplash.com/photo-1571175488180-ef9b042a6911?auto=format&fit=crop&q=80&w=200" },
+  { name: "Accessories", image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&q=80&w=200" },
+  { name: "Printers & Monitors", image: "https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&q=80&w=200" },
+  { name: "ACs", image: "https://images.unsplash.com/photo-1631541909061-71e349d1f103?auto=format&fit=crop&q=80&w=200" },
+  { name: "Washing Machines", image: "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&q=80&w=200" },
+];
 
 const CATEGORIES = [
   { name: 'Academic', icon: <BookOpen className="w-7 h-7" />, color: 'bg-indigo-50 text-indigo-600' },
@@ -70,10 +84,43 @@ interface HomeViewProps {
 }
 
 export default function HomeView({ onSelectItem }: HomeViewProps) {
+  const [showExplorer, setShowExplorer] = React.useState(false);
+
   return (
     <div className="flex-1 overflow-x-hidden bg-white pb-32 h-full overflow-y-auto hide-scrollbar sm:px-4">
       <div className="max-w-5xl mx-auto w-full">
         
+        {/* Category Explorer Modal */}
+        {showExplorer && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setShowExplorer(false)}></div>
+            <div className="relative w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-400">
+               <header className="px-8 py-8 flex items-center justify-between border-b border-slate-50">
+                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">Explore Categories</h3>
+                  <button onClick={() => setShowExplorer(false)} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all">
+                     <X size={24} strokeWidth={3} />
+                  </button>
+               </header>
+               <div className="flex-1 overflow-y-auto p-8 grid grid-cols-2 sm:grid-cols-3 gap-y-10 gap-x-6 hide-scrollbar">
+                  {SUB_CATEGORIES.map((sub, i) => (
+                    <div key={i} className="flex flex-col items-center gap-4 group cursor-pointer">
+                       <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-50 shadow-lg group-hover:scale-110 group-active:scale-95 transition-all">
+                          <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                       </div>
+                       <span className="text-[13px] font-bold text-slate-700 text-center leading-tight group-hover:text-brand transition-colors">{sub.name}</span>
+                    </div>
+                  ))}
+                  <div className="flex flex-col items-center gap-4 group cursor-pointer">
+                     <div className="w-24 h-24 rounded-full bg-slate-50 border-4 border-white shadow-lg flex items-center justify-center group-hover:scale-110 transition-all">
+                        <ChevronRight size={32} className="text-brand group-hover:translate-x-1 transition-transform" />
+                     </div>
+                     <span className="text-[13px] font-black text-brand uppercase tracking-widest">View All</span>
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
+
         {/* Location Selector */}
         <div className="px-6 pt-8 pb-4">
           <button className="flex items-center gap-2 text-slate-400 group">
@@ -95,7 +142,11 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
            <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Popular Categories</h3>
            <div className="flex gap-6 overflow-x-auto hide-scrollbar pb-4 -mx-1 px-1">
               {CATEGORIES.map((cat, i) => (
-                <div key={i} className="flex flex-col items-center gap-3 min-w-[90px] group cursor-pointer">
+                <div 
+                  key={i} 
+                  onClick={() => setShowExplorer(true)}
+                  className="flex flex-col items-center gap-3 min-w-[90px] group cursor-pointer"
+                >
                    <div className={`w-20 h-20 ${cat.color} rounded-[2rem] flex items-center justify-center shadow-lg shadow-black/5 group-hover:scale-110 group-active:scale-95 transition-all duration-300 border border-white/20`}>
                       {cat.icon}
                    </div>
@@ -170,7 +221,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
                             Dep: {item.deposit}
                          </div>
                          <button className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-brand hover:text-white transition-all">
-                            <Plus size={20} />
+                            <PlusIcon size={20} />
                          </button>
                       </div>
                    </div>
@@ -184,7 +235,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
   );
 }
 
-function Plus({ size, className }: { size: number, className?: string }) {
+function PlusIcon({ size, className }: { size: number, className?: string }) {
    return (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
          <line x1="12" y1="5" x2="12" y2="19"></line>
