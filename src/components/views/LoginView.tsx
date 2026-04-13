@@ -6,7 +6,9 @@ import {
   Smartphone, 
   ChevronLeft, 
   ChevronRight,
-  Mail
+  Mail,
+  BookOpen,
+  Laptop
 } from 'lucide-react';
 
 interface LoginViewProps {
