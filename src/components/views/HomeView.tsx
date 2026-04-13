@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react';
 import Image from 'next/image';
+import LocationSelector from '../LocationSelector';
 
 const SUB_CATEGORIES = [
   { name: "TVs, Video - Audio", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&q=80&w=200" },
@@ -123,18 +124,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
 
         {/* Location Selector */}
         <div className="px-6 pt-8 pb-4">
-          <button className="flex items-center gap-2 text-slate-400 group">
-             <div className="bg-brand/10 p-2 rounded-xl group-hover:bg-brand/20 transition-colors">
-                <MapPin className="w-5 h-5 text-brand" />
-             </div>
-             <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1 opacity-50">Current Location</p>
-                <div className="flex items-center gap-1">
-                   <span className="text-[15px] font-black text-slate-800">Columbia Hostel Area</span>
-                   <ChevronDown className="w-4 h-4 text-brand" />
-                </div>
-             </div>
-          </button>
+           <LocationSelector />
         </div>
 
         {/* Categories Grid/Row */}
