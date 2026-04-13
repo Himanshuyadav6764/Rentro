@@ -12,7 +12,6 @@ import {
   Calendar, 
   CheckCircle2, 
   TrendingDown,
-  TrendingUp,
   Info,
   ChevronRight,
   Star,
@@ -29,180 +28,161 @@ interface ProductDetailViewProps {
 
 export default function ProductDetailView({ productId, onBack }: ProductDetailViewProps) {
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col font-sans animate-in slide-in-from-bottom-6 duration-700">
+    <div className="fixed inset-0 z-[999] bg-white flex flex-col font-sans animate-in slide-in-from-bottom-10 duration-700">
       
-      {/* Top Navigation Bar - Glassmorphism */}
-      <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between pointer-events-none">
+      {/* Top Navigation Bar - Truly Fixed and High Z-Index */}
+      <div className="fixed top-0 left-0 right-0 z-[1000] px-6 py-6 flex items-center justify-between pointer-events-none">
          <button 
            onClick={onBack}
-           className="w-12 h-12 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 hover:scale-110 active:scale-95 transition-all pointer-events-auto border border-white/40 group"
+           className="w-12 h-12 bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 hover:scale-110 active:scale-95 transition-all pointer-events-auto border border-white/50 group"
          >
             <ChevronLeft size={24} strokeWidth={3} className="group-hover:-translate-x-0.5 transition-transform" />
          </button>
          <div className="flex gap-3 pointer-events-auto">
-            <button className="w-12 h-12 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 hover:scale-110 active:scale-95 transition-all border border-white/40">
+            <button className="w-12 h-12 bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl flex items-center justify-center text-slate-800 hover:scale-110 active:scale-95 transition-all border border-white/50">
                 <Share2 size={20} />
             </button>
-            <button className="w-12 h-12 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl flex items-center justify-center text-red-500 hover:scale-110 active:scale-95 transition-all border border-white/40">
+            <button className="w-12 h-12 bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl flex items-center justify-center text-red-500 hover:scale-110 active:scale-95 transition-all border border-white/50">
                 <Heart size={20} fill="currentColor" className="text-red-500" />
             </button>
          </div>
-      </header>
+      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar bg-[#fcfdfe]">
+      {/* Main Content Scroll Container */}
+      <div className="flex-1 overflow-y-auto hide-scrollbar bg-[#f8faff] scroll-smooth">
          
          {/* Immersive Image Header */}
-         <div className="relative w-full h-[50vh] md:h-[60vh] min-h-[400px]">
-            <div className="absolute inset-0 bg-slate-100">
+         <div className="relative w-full h-[55vh] md:h-[65vh] min-h-[450px]">
+            <div className="absolute inset-0 bg-slate-200">
+               {/* Using a robust laptop image from Unsplash */}
                <img 
-                 src="https://images.unsplash.com/photo-1517336714460-4c742a27744b?auto=format&fit=crop&q=80&w=1200" 
+                 src="https://images.unsplash.com/photo-1517336714460-4c742a27744b?q=80&w=2000&auto=format&fit=crop" 
                  alt="MacBook Pro M2" 
                  className="w-full h-full object-cover"
                />
-               <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-white"></div>
+               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[#f8faff]"></div>
             </div>
             
             {/* Price Floating Plate */}
-            <div className="absolute bottom-10 right-8 bg-brand/90 backdrop-blur-2xl text-white p-5 rounded-[2.5rem] shadow-2xl shadow-brand/40 border border-white/20 animate-in zoom-in duration-500 delay-300">
-               <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Rental Price</p>
-               <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black tracking-tighter">₹ 250</span>
-                  <span className="text-sm font-bold opacity-60">/day</span>
+            <div className="absolute bottom-16 right-8 md:right-16 bg-brand text-white p-6 rounded-[2.8rem] shadow-[0_20px_60px_rgba(27,82,214,0.4)] border border-white/20 animate-in zoom-in duration-700 delay-300">
+               <p className="text-[10px] font-black uppercase tracking-[0.25em] opacity-60 mb-1.5">Daily Rental</p>
+               <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl font-black tracking-tighter">₹ 250</span>
                </div>
             </div>
 
-            <div className="absolute bottom-10 left-8 flex items-center gap-3 bg-white/30 backdrop-blur-md rounded-2xl px-4 py-2 text-white border border-white/20 shadow-lg">
-                <MapPin size={16} className="text-white" />
-                <span className="text-[13px] font-black uppercase tracking-widest">Main Campus • Area 4</span>
+            <div className="absolute bottom-16 left-8 md:left-16 flex items-center gap-3 bg-white/20 backdrop-blur-xl rounded-2xl px-5 py-3 text-white border border-white/10 shadow-2xl">
+                <MapPin size={18} className="text-white" />
+                <span className="text-[14px] font-black uppercase tracking-[0.1em]">Columbia Campus • Block C</span>
             </div>
          </div>
 
          {/* Product Details Section */}
-         <div className="relative -mt-10 bg-[#fcfdfe] rounded-t-[3rem] px-6 md:px-12 pt-12 pb-40 max-w-5xl mx-auto w-full">
+         <div className="relative -mt-16 bg-[#f8faff] rounded-t-[4rem] px-6 md:px-16 pt-16 pb-60 max-w-6xl mx-auto w-full">
             
             {/* Title & Badge */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                     <span className="bg-brand/10 text-brand px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Electronics</span>
-                     <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1"><Shield size={10} /> Fully Insured</span>
+                  <div className="flex items-center gap-2.5 mb-4">
+                     <span className="bg-brand/10 text-brand px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border border-brand/5">Electronics</span>
+                     <span className="bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-emerald-100"><Shield size={12} /> Full Protection</span>
                   </div>
-                  <h1 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tight leading-none">MacBook Pro M2</h1>
+                  <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[0.9]">MacBook Pro M2</h1>
                </div>
                
-               <div className="flex items-center gap-4 bg-white p-3 rounded-3xl shadow-sm border border-slate-100">
-                  <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg border-2 border-white bg-blue-50">
+               <div className="flex items-center gap-5 bg-white p-4 rounded-[2.5rem] shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-slate-100 hover:shadow-xl transition-all group">
+                  <div className="w-16 h-16 rounded-[1.5rem] overflow-hidden shadow-2xl border-4 border-white group-hover:scale-105 transition-transform">
                      <img src="/ankit-avatar.png" alt="Ankit Sharma" className="w-full h-full object-cover" />
                   </div>
                   <div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Verified Owner</p>
-                     <p className="text-[17px] font-black text-slate-800">Ankit Sharma</p>
-                     <div className="flex items-center gap-1.5 mt-1">
-                        <div className="flex items-center gap-0.5 bg-brand/5 text-brand px-2 py-0.5 rounded-lg text-[11px] font-black">
-                           <Star size={10} fill="currentColor" /> 4.9
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Top Tier Owner</p>
+                     <p className="text-[19px] font-black text-slate-800">Ankit Sharma</p>
+                     <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-1 bg-[#fdb528] text-white px-2.5 py-0.5 rounded-lg text-[12px] font-black">
+                           <Star size={12} fill="currentColor" /> 4.9
                         </div>
-                        <span className="text-[11px] font-bold text-slate-400">12+ Successful Rentals</span>
+                        <span className="text-[12px] font-bold text-slate-500">12 Rents</span>
                      </div>
                   </div>
                </div>
             </div>
 
-            {/* AI Trust Architecture Card */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            {/* Content Cards Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
                
-               {/* AI Intelligence Card */}
-               <div className="bg-slate-900 rounded-[2.5rem] p-8 relative overflow-hidden group shadow-2xl">
-                  <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-brand/30 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700"></div>
-                  
-                  <div className="relative z-10">
-                     <div className="flex items-center gap-3 mb-8">
-                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-md">
-                           <Zap size={24} className="text-brand fill-brand/20" />
+               {/* Left Column: AI & Stats */}
+               <div className="lg:col-span-7 flex flex-col gap-8">
+                  <div className="bg-slate-900 rounded-[3rem] p-10 relative overflow-hidden group shadow-2xl">
+                     <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-brand/30 rounded-full blur-[100px] group-hover:scale-125 transition-all duration-1000"></div>
+                     
+                     <div className="relative z-10">
+                        <div className="flex items-center gap-5 mb-10">
+                           <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center border border-white/20 backdrop-blur-3xl shadow-2xl">
+                              <Zap size={32} className="text-[#fdb528] fill-[#fdb528]/20" />
+                           </div>
+                           <div>
+                              <h3 className="text-white font-black text-2xl tracking-tight leading-none uppercase tracking-[0.1em]">AI Rental Logic</h3>
+                              <p className="text-slate-400 text-[12px] font-bold mt-2 uppercase tracking-widest opacity-60">Insight version 2.4.0</p>
+                           </div>
                         </div>
-                        <div>
-                           <h3 className="text-white font-black text-lg tracking-tight leading-none uppercase tracking-[0.1em]">AI Analysis</h3>
-                           <p className="text-slate-400 text-[11px] font-bold mt-1">REAL-TIME RISK ASSESSMENT</p>
-                        </div>
-                     </div>
 
-                     <div className="space-y-5">
-                         <div className="flex items-start gap-4">
-                            <div className="mt-1 bg-emerald-500 rounded-full p-1"><CheckCircle2 size={12} className="text-white" /></div>
-                            <div>
-                               <p className="text-white font-black text-sm">Safe Transaction Verified</p>
-                               <p className="text-slate-400 text-[11px] font-medium leading-relaxed">Owner has a high trust score and verified item condition.</p>
-                            </div>
-                         </div>
-                         <div className="flex items-start gap-4">
-                            <div className="mt-1 bg-brand rounded-full p-1"><Clock size={12} className="text-white" /></div>
-                            <div>
-                               <p className="text-white font-black text-sm">Market Recommendation</p>
-                               <p className="text-slate-400 text-[11px] font-medium leading-relaxed">Most students rent this for <span className="text-white font-bold">7-10 days</span> for best value.</p>
-                            </div>
-                         </div>
-                     </div>
-
-                     <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between">
-                        <span className="text-white font-black text-[12px] uppercase tracking-widest opacity-80">Trust Sentiment</span>
-                        <div className="flex gap-1.5 font-black text-emerald-400 text-[12px]">
-                           <span>POSITIVE</span>
-                           <TrendingUp size={16} />
+                        <div className="space-y-6">
+                            <AIInsightRow icon={<CheckCircle2 className="text-emerald-400" />} title="Safe User Verified" desc="Our AI scanned 15 previous transactions. 100% safety score." />
+                            <AIInsightRow icon={<TrendingDown className="text-brand" />} title="Price Optimization" desc="Found similar items at ₹230. Try negotiating for better value." />
                         </div>
                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                     <StatCard label="Condition" value="Mint" color="text-brand" />
+                     <StatCard label="Battery" value="98%" color="text-emerald-500" />
                   </div>
                </div>
 
-               {/* Pricing Detail Card */}
-               <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-10">
-                     <div>
-                        <h3 className="text-[13px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Investment Summary</h3>
-                        <div className="flex flex-col gap-2">
-                           <div className="flex justify-between items-center text-slate-600 font-bold">
-                              <span>Daily Rent</span>
-                              <span className="text-slate-900">₹ 250</span>
-                           </div>
-                           <div className="flex justify-between items-center text-slate-600 font-bold">
-                              <span>Security Deposit</span>
-                              <span className="text-slate-900">₹ 1,000</span>
-                           </div>
-                           <div className="flex justify-between items-center text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-xl mt-2">
-                              <span>Refund Policy</span>
-                              <span>100% Refundable</span>
+               {/* Right Column: Pricing & Quick Info */}
+               <div className="lg:col-span-5 flex flex-col gap-8">
+                  <div className="bg-white rounded-[3rem] p-4 border border-slate-100 shadow-xl shadow-slate-200/40">
+                     <div className="bg-[#f0f4f8] rounded-[2.5rem] p-8">
+                        <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Financial Breakdown</h3>
+                        <div className="space-y-4">
+                           <PriceRow label="Daily Rental" value="₹ 250" />
+                           <PriceRow label="Security Deposit" value="₹ 1,000" isBold />
+                           <div className="pt-4 mt-4 border-t border-slate-200 flex justify-between items-center bg-emerald-50 px-5 py-3 rounded-2xl">
+                              <span className="text-[12px] font-black text-emerald-700 uppercase">Refund Policy</span>
+                              <span className="text-[13px] font-black text-emerald-800">PRO-GUARD SAFE</span>
                            </div>
                         </div>
                      </div>
                   </div>
 
-                  <div className="bg-slate-50 rounded-[2rem] p-5 flex items-center gap-4">
-                     <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center text-brand">
-                        <Info size={28} />
+                  <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-lg flex items-center gap-5">
+                     <div className="w-16 h-16 bg-brand/5 rounded-3xl flex items-center justify-center text-brand">
+                        <ShieldCheck size={32} />
                      </div>
                      <div>
-                        <p className="text-slate-800 font-black text-sm">Rental Protection</p>
-                        <p className="text-slate-400 text-[11px] font-medium leading-tight">This listing is covered under our <span className="text-brand font-bold">Student Safety Plus</span> program.</p>
+                        <p className="text-slate-900 font-black text-[17px]">Purchase Protection</p>
+                        <p className="text-slate-500 text-[13px] font-medium leading-tight">Your funds are safe until you verify the item condition.</p>
                      </div>
                   </div>
                </div>
             </div>
 
-            {/* Availability Grid */}
+            {/* Availability Timeline */}
             <div className="mb-12">
-               <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-[15px] font-black text-slate-800 uppercase tracking-[0.2em]">Item Availability</h3>
-                  <button className="text-brand font-black text-[12px] uppercase tracking-widest flex items-center gap-1.5 hover:gap-3 transition-all">
-                     View Full Calendar <ArrowRight size={14} />
+               <div className="flex items-center justify-between mb-8 px-4">
+                  <h3 className="text-[18px] font-black text-slate-900 tracking-tight">Availability Index</h3>
+                  <button className="text-brand font-black text-[13px] uppercase tracking-widest flex items-center gap-2 group">
+                     Full Schedule <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                </div>
                
-               <div className="grid grid-cols-7 gap-3">
+               <div className="grid grid-cols-4 md:grid-cols-7 gap-4">
                   {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, i) => (
-                    <div key={i} className="flex flex-col items-center gap-3">
-                       <span className="text-[10px] font-black text-slate-400 opacity-60">{day}</span>
-                       <div className={`w-full aspect-square md:w-20 md:h-20 rounded-3xl flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${i < 5 ? 'bg-white border-2 border-emerald-500/20 shadow-emerald-200/20' : 'bg-slate-50 border-2 border-slate-100 opacity-40'}`}>
-                          <span className={`text-[17px] font-black ${i < 5 ? 'text-slate-800' : 'text-slate-400'}`}>{22 + i}</span>
-                          {i < 5 && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/50"></div>}
+                    <div key={i} className="flex flex-col items-center gap-4">
+                       <span className="text-[11px] font-black text-slate-400">{day}</span>
+                       <div className={`w-full aspect-square rounded-[2rem] flex flex-col items-center justify-center gap-1.5 transition-all shadow-md ${i < 5 ? 'bg-white border-2 border-emerald-500/30' : 'bg-slate-100 border-2 border-slate-200 opacity-30 cursor-not-allowed'}`}>
+                          <span className={`text-[20px] font-black ${i < 5 ? 'text-slate-900' : 'text-slate-400'}`}>{22 + i}</span>
+                          {i < 5 && <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/50 pulse-emerald"></div>}
                        </div>
                     </div>
                   ))}
@@ -212,29 +192,63 @@ export default function ProductDetailView({ productId, onBack }: ProductDetailVi
          </div>
       </div>
 
-      {/* Premium Sticky Footer */}
-      <footer className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-3xl border-t border-slate-100 p-8 z-50 flex items-center justify-between max-w-7xl mx-auto w-full shadow-[0_-20px_50px_rgba(0,0,0,0.05)]">
-         <div className="hidden lg:flex flex-col">
-            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-1">Total Estimated Rent</p>
-            <div className="flex items-baseline gap-1.5">
-               <span className="text-3xl font-black text-slate-900 tracking-tighter">₹ 1,750</span>
-               <span className="text-sm font-bold text-slate-400">/ 7 days</span>
+      {/* Footer Actions - Multi-layer Glass Design */}
+      <div className="fixed bottom-0 left-0 right-0 z-[1001] p-6 md:p-10 pointer-events-none flex justify-center">
+         <div className="w-full max-w-5xl bg-white/70 backdrop-blur-3xl border border-white/60 p-5 md:p-7 rounded-[3.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.15)] flex items-center justify-between pointer-events-auto">
+            <div className="hidden md:flex flex-col pl-4">
+               <p className="text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] mb-1.5">Est. Total</p>
+               <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-black text-slate-900 tracking-tighter">₹ 1,750</span>
+                  <span className="text-[15px] font-black text-slate-400 leading-none">/ 7 DAYS</span>
+               </div>
+            </div>
+
+            <div className="flex flex-1 md:flex-none items-center gap-5 pr-2">
+               <button className="flex-1 md:w-[320px] min-h-[80px] bg-brand text-white rounded-[2.2rem] font-black text-xl tracking-tight shadow-[0_20px_50px_rgba(27,82,214,0.4)] hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center gap-4 group px-10">
+                  RENT NOW
+                  <div className="bg-white/20 p-2 rounded-full group-hover:translate-x-1.5 transition-transform">
+                     <ArrowRight size={22} strokeWidth={3} />
+                  </div>
+               </button>
+               
+               <button className="w-20 h-20 bg-slate-100/50 border border-slate-200 rounded-[2.2rem] flex items-center justify-center text-slate-600 hover:bg-brand/10 hover:text-brand transition-all hover:border-brand/20 group">
+                  <MessageCircle size={32} strokeWidth={2.5} className="group-hover:scale-110 transition-all" />
+               </button>
             </div>
          </div>
-
-         <div className="flex flex-1 lg:flex-[0.5] items-center gap-4">
-            <button className="flex-1 min-h-[72px] bg-brand text-white rounded-[1.8rem] font-black text-lg tracking-tight shadow-2xl shadow-brand/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 group px-8">
-               RENT THIS ITEM
-               <div className="bg-white/20 p-1.5 rounded-full group-hover:translate-x-1 transition-transform">
-                  <ArrowRight size={18} strokeWidth={3} />
-               </div>
-            </button>
-            
-            <button className="w-[72px] h-[72px] bg-slate-50 rounded-[1.8rem] flex items-center justify-center text-slate-600 hover:bg-brand/5 hover:text-brand transition-all border border-slate-100 group shadow-inner">
-               <MessageCircle size={28} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
-            </button>
-         </div>
-      </footer>
+      </div>
     </div>
   );
+}
+
+function AIInsightRow({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+   return (
+      <div className="flex items-start gap-5">
+         <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 border border-white/5">
+            {React.cloneElement(icon as React.ReactElement, { size: 24 })}
+         </div>
+         <div>
+            <p className="text-white font-black text-lg tracking-tight mb-1">{title}</p>
+            <p className="text-slate-400 text-[13px] font-medium leading-relaxed opacity-80">{desc}</p>
+         </div>
+      </div>
+   );
+}
+
+function StatCard({ label, value, color }: { label: string, value: string, color: string }) {
+   return (
+      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col gap-1.5 overflow-hidden relative group hover:shadow-xl transition-all">
+         <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+         <span className={`text-2xl font-black ${color}`}>{value}</span>
+      </div>
+   );
+}
+
+function PriceRow({ label, value, isBold }: { label: string, value: string, isBold?: boolean }) {
+   return (
+      <div className={`flex justify-between items-center text-[15px] ${isBold ? 'text-slate-900 font-black' : 'text-slate-600 font-bold'}`}>
+         <span>{label}</span>
+         <span>{value}</span>
+      </div>
+   );
 }
