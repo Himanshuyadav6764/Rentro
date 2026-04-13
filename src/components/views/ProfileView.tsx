@@ -8,8 +8,6 @@ import {
   CheckCircle2, 
   Smartphone, 
   Mail, 
-  GraduationCap, 
-  BookOpen,
   TrendingUp,
   Clock,
   AlertCircle,
@@ -18,8 +16,7 @@ import {
   Star,
   Check,
   X,
-  Camera,
-  Briefcase
+  Camera
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -33,8 +30,6 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
     name: "Shekhar Kumar",
     email: "shekharkumar@email.com",
     phone: "+91 9876543210",
-    college: "ABC Engineering College",
-    course: "Computer Science",
     avatar: "/shekhar-avatar.png"
   });
 
@@ -101,16 +96,6 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
                 </div>
 
                 <EditField label="Email Address" value={tempProfile.email} onChange={(v) => setTempProfile({...tempProfile, email: v})} icon={<Mail size={16} />} />
-
-                <div className="pt-6 border-t border-slate-50 flex items-center gap-2 mb-2">
-                   <GraduationCap size={18} className="text-brand" />
-                   <h4 className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em]">Academic Details</h4>
-                </div>
-
-                <div className="space-y-6">
-                   <EditField label="College Name" value={tempProfile.college} onChange={(v) => setTempProfile({...tempProfile, college: v})} icon={<ExternalLink size={16} />} />
-                   <EditField label="Course / Major" value={tempProfile.course} onChange={(v) => setTempProfile({...tempProfile, course: v})} icon={<Briefcase size={16} />} />
-                </div>
              </div>
 
              <footer className="px-8 py-6 border-t border-slate-50 bg-slate-50/50 backdrop-blur-sm flex items-center gap-4">
@@ -194,8 +179,6 @@ export default function ProfileView({ onOpenSellModal }: ProfileViewProps) {
         <DetailCard icon={<User size={18} />} value={profile.name} label="Full Name" />
         <DetailCard icon={<Mail size={18} />} value={profile.email} label="Email Address" />
         <DetailCard icon={<Smartphone size={18} />} value={profile.phone} label="Phone Number" />
-        <DetailCard icon={<GraduationCap size={18} />} value={profile.college} label="College Name" />
-        <DetailCard icon={<BookOpen size={18} />} value={profile.course} label="Course / Major" />
       </div>
 
       {/* AI Trust Section */}
