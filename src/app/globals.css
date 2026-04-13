@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffff; /* Replaced the framed blue outer color with white for full view */
+  --foreground: #1c2b4c;
+  --brand: #1b52d6; /* The distinct blue used across UI */
+  --brand-deep: #103387;
+  --muted: #6b7280;
+  --border: #eef1f6;
+  --card: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --font-sans: "Inter", "Poppins", sans-serif;
+  --color-trust-bg: #e6f7f2;
+  --color-trust-green: #219653;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+/* Hide scrollbar for category and horizontal scrolling */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.trust-banner-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10L90 90M90 10L10 90' stroke='rgba(33,150,83,0.05)' stroke-width='1' fill='none'/%3E%3C/svg%3E");
+  background-size: 50px 50px;
+}
+
+/* Base custom utility for the central app container on large screens */
+.app-container {
+  background: #ffffff;
+  box-shadow: 0 0 20px rgba(0,0,0,0.05);
 }
