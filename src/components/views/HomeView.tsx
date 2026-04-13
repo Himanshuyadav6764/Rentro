@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -21,10 +21,24 @@ import {
   Wrench,
   Zap,
   Calendar,
-  X
+  X,
+  Navigation
 } from 'lucide-react';
 import Image from 'next/image';
 import LocationSelector from '../LocationSelector';
+
+// Haversine formula to calculate distance in KM
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 
 const SUB_CATEGORIES = [
   { name: "TVs, Video - Audio", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&q=80&w=200" },
@@ -50,7 +64,8 @@ const CATEGORIES = [
   { name: 'Events', icon: <Calendar className="w-7 h-7" />, color: 'bg-rose-50 text-rose-600' },
 ];
 
-const FEATURED_ITEMS = [
+// Mock data with coordinates
+const MOCK_ITEMS = [
   {
     id: 1,
     name: 'MacBook Pro M2',
@@ -58,7 +73,9 @@ const FEATURED_ITEMS = [
     deposit: '₹ 1000',
     trustScore: 85,
     owner: 'Ankit S.',
-    image: 'https://images.unsplash.com/photo-1517336714460-4c742a27744b?auto=format&fit=crop&q=80&w=400'
+    image: 'https://images.unsplash.com/photo-1517336714460-4c742a27744b?auto=format&fit=crop&q=80&w=400',
+    lat: 28.6139,
+    lng: 77.2090
   },
   {
     id: 2,
@@ -67,16 +84,31 @@ const FEATURED_ITEMS = [
     deposit: '₹ 100',
     trustScore: 92,
     owner: 'Priya V.',
-    image: 'https://images.unsplash.com/photo-1626154320743-403487053e1a?auto=format&fit=crop&q=80&w=400'
+    image: 'https://images.unsplash.com/photo-1626154320743-403487053e1a?auto=format&fit=crop&q=80&w=400',
+    lat: 28.5355,
+    lng: 77.3910
   },
   {
     id: 3,
-    name: 'Engineering Graphics',
+    name: 'Engineering Graphics Set',
     price: '₹ 30',
     deposit: '₹ 150',
     trustScore: 88,
     owner: 'Rohan K.',
-    image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400'
+    image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400',
+    lat: 28.4595,
+    lng: 77.0266
+  },
+  {
+    id: 4,
+    name: 'Sony WH-1000XM4',
+    price: '₹ 120',
+    deposit: '₹ 500',
+    trustScore: 95,
+    owner: 'Ishani M.',
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=400',
+    lat: 28.6324,
+    lng: 77.2187
   }
 ];
 
@@ -86,6 +118,36 @@ interface HomeViewProps {
 
 export default function HomeView({ onSelectItem }: HomeViewProps) {
   const [showExplorer, setShowExplorer] = React.useState(false);
+  const [userLocation, setUserLocation] = React.useState<{lat: number, lng: number} | null>(null);
+  const [sortedItems, setSortedItems] = React.useState(MOCK_ITEMS);
+
+  // Load user location from localStorage (synced with LocationSelector)
+  useEffect(() => {
+    const updateLocation = () => {
+      const saved = localStorage.getItem('user_location');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.lat && parsed.lng) {
+          setUserLocation({ lat: parsed.lat, lng: parsed.lng });
+        }
+      }
+    };
+
+    updateLocation();
+    const interval = setInterval(updateLocation, 2000); // Poll for changes
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sort items by distance when user location is available
+  useEffect(() => {
+    if (userLocation) {
+      const itemsWithDistance = MOCK_ITEMS.map(item => ({
+        ...item,
+        distance: getDistance(userLocation.lat, userLocation.lng, item.lat, item.lng)
+      })).sort((a, b) => a.distance - b.distance);
+      setSortedItems(itemsWithDistance);
+    }
+  }, [userLocation]);
 
   return (
     <div className="flex-1 overflow-x-hidden bg-white pb-32 h-full overflow-y-auto hide-scrollbar sm:px-4">
@@ -146,11 +208,10 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
            </div>
         </div>
 
-        {/* Trust Banner - Premium AI Card */}
+        {/* Trust Banner */}
         <div className="px-6 py-4">
            <div className="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group border border-white/5 cursor-pointer">
               <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all"></div>
-              
               <div className="relative z-10 flex items-center justify-between">
                  <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -161,8 +222,8 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
                           <h2 className="text-white font-black text-xl leading-none">Trust Score: 90</h2>
                           <div className="bg-emerald-500 rounded-full p-0.5"><CheckCircle2 size={12} className="text-white" /></div>
                        </div>
-                       <p className="text-emerald-400/60 text-[11px] font-bold uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
-                          <Package size={12} /> Improve to save on deposits
+                       <p className="text-emerald-400/60 text-[11px] font-bold uppercase tracking-widest mt-1.5 flex items-center gap-1.5 font-mono">
+                          90TH PERCENTILE IN CAMPUS
                        </p>
                     </div>
                  </div>
@@ -171,12 +232,12 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
            </div>
         </div>
 
-        {/* Featured Section */}
+        {/* Featured Section (Now Nearby-Aware) */}
         <div className="px-6 mt-10">
            <div className="flex justify-between items-end mb-8">
               <div>
-                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Featured</h3>
-                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">Newest Rentals</h2>
+                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Nearby You</h3>
+                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">Recommendation Grid</h2>
               </div>
               <button className="text-brand font-black text-[11px] uppercase tracking-widest flex items-center gap-1 pb-1 hover:gap-2 transition-all">
                 See All <ChevronRight size={14} />
@@ -184,33 +245,42 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
            </div>
 
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {FEATURED_ITEMS.map((item) => (
+              {sortedItems.map((item: any) => (
                 <div 
                   key={item.id} 
                   onClick={() => onSelectItem?.(item.id.toString())}
-                  className="group bg-white rounded-[2rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
-                   <div className="w-full h-40 bg-slate-50 rounded-2xl overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
+                  className="group bg-white rounded-[2.5rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
+                   <div className="w-full h-44 bg-slate-50 rounded-[2rem] overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md text-[11px] font-black px-3 py-1.5 rounded-xl shadow-sm">
+                      
+                      {/* Distance Badge */}
+                      {item.distance !== undefined && (
+                        <div className="absolute top-3 left-3 bg-brand text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 border border-white/20">
+                           <Navigation size={10} className="fill-white" />
+                           {item.distance.toFixed(1)} km away
+                        </div>
+                      )}
+
+                      <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-[13px] font-black px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
                          {item.price}<span className="text-slate-400 font-bold">/day</span>
                       </div>
                    </div>
-                   <div className="flex flex-col py-1">
+                   <div className="flex flex-col px-1 pb-2">
                       <div className="flex justify-between items-start mb-1">
-                         <h3 className="font-bold text-slate-800 text-[16px] leading-tight group-hover:text-brand transition-colors">{item.name}</h3>
+                         <h3 className="font-bold text-slate-800 text-[17px] leading-tight group-hover:text-brand transition-colors truncate pr-4">{item.name}</h3>
                          <div className="flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50">
                             <Star size={10} fill="currentColor" /> {item.trustScore}
                          </div>
                       </div>
-                      <p className="text-[12px] text-slate-400 font-bold flex items-center gap-1 mb-3">
-                        Owned by <span className="text-slate-600">{item.owner}</span>
+                      <p className="text-[12px] text-slate-400 font-medium flex items-center gap-1 mb-4">
+                        By <span className="text-slate-600 font-bold">{item.owner}</span> • <span className="text-brand">Verified</span>
                       </p>
                       <div className="flex items-center justify-between mt-auto">
-                         <div className="flex items-center gap-1.5 text-xs font-bold text-brand bg-brand/5 px-3 py-1.5 rounded-xl border border-brand/10">
+                         <div className="flex items-center gap-1.5 text-[11px] font-black text-brand bg-brand/5 px-4 py-2 rounded-2xl border border-brand/10">
                             <CheckCircle2 size={14} />
-                            Dep: {item.deposit}
+                            Deposit: {item.deposit}
                          </div>
-                         <button className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-brand hover:text-white transition-all">
+                         <button className="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-brand hover:-rotate-12 transition-all shadow-lg shadow-slate-900/10">
                             <PlusIcon size={20} />
                          </button>
                       </div>

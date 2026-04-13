@@ -18,15 +18,14 @@ export default function LocationSelector() {
   const [status, setStatus] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  const API_KEY = "YOUR_API_KEY"; // Placeholder as requested
+  const API_KEY = "YOUR_API_KEY"; // Placeholder
 
-  // Load from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('user_location');
     if (saved) {
       setLocation(JSON.parse(saved));
     } else {
-      detectCurrentLocation();
+      detectLocation();
     }
 
     function handleClickOutside(event: MouseEvent) {
@@ -38,14 +37,12 @@ export default function LocationSelector() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Save to localStorage whenever location changes
   useEffect(() => {
     if (location.lat) {
       localStorage.setItem('user_location', JSON.stringify(location));
     }
   }, [location]);
 
-  // Debounced Search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.length > 2) {
@@ -57,13 +54,12 @@ export default function LocationSelector() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const detectCurrentLocation = () => {
+  const detectLocation = async () => {
     setIsLoading(true);
     setStatus("Detecting...");
     
     if (!navigator.geolocation) {
-      setStatus("Geolocation not supported");
-      setIsLoading(false);
+      fallbackToIP();
       return;
     }
 
@@ -73,11 +69,24 @@ export default function LocationSelector() {
         await reverseGeocode(latitude, longitude);
       },
       (error) => {
-        console.error(error);
-        setStatus("Permission Denied");
-        setIsLoading(false);
+        console.warn("Geolocation permission denied, falling back to IP...");
+        fallbackToIP();
       }
     );
+  };
+
+  const fallbackToIP = async () => {
+    try {
+      const resp = await fetch('https://ipapi.co/json/');
+      const data = await resp.json();
+      if (data.latitude) {
+        await reverseGeocode(data.latitude, data.longitude);
+      }
+    } catch (e) {
+      setStatus("Location Denied");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const reverseGeocode = async (lat: number, lng: number) => {
@@ -86,14 +95,12 @@ export default function LocationSelector() {
       const data = await response.json();
       if (data.results && data.results.length > 0) {
         const result = data.results[0];
-        const area = result.components.suburb || result.components.neighbourhood || result.components.city || "Unknown Area";
-        const newLocation = { address: area, lat, lng };
-        setLocation(newLocation);
+        const area = result.components.suburb || result.components.neighbourhood || result.components.city || "Unknown";
+        setLocation({ address: area, lat, lng });
         setStatus(null);
       }
     } catch (err) {
       console.error(err);
-      setStatus("Error fetching address");
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +130,6 @@ export default function LocationSelector() {
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      {/* Header View */}
       <button 
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         className="flex items-center gap-3 text-slate-400 group hover:opacity-80 transition-all text-left"
@@ -142,74 +148,45 @@ export default function LocationSelector() {
         </div>
       </button>
 
-      {/* Manual Location Dropdown */}
       {isDropdownOpen && (
-        <div className="absolute top-16 left-0 w-full md:w-[350px] bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-50 z-[100] p-5 animate-in slide-in-from-top-4 duration-300 overflow-hidden">
-          
+        <div className="absolute top-16 left-0 w-full md:w-[350px] bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-50 z-[100] p-5 animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between mb-4 px-1">
              <h4 className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Select Area</h4>
              <button onClick={() => setIsDropdownOpen(false)} className="text-slate-300 hover:text-slate-500"><X size={16} /></button>
           </div>
-
-          {/* Search Box */}
           <div className="relative mb-4">
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl flex items-center h-12 px-4 focus-within:ring-4 ring-brand/5 focus-within:border-brand/20 transition-all">
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl flex items-center h-12 px-4 focus-within:ring-4 ring-brand/5 transition-all">
               <Search className="w-4 h-4 text-slate-400 mr-2" />
               <input 
                 type="text" 
-                placeholder="Search your hostel or area..."
+                placeholder="Search area..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent outline-none text-[13px] font-bold text-slate-700 placeholder:text-slate-300"
+                className="flex-1 bg-transparent outline-none text-[13px] font-bold text-slate-700"
               />
             </div>
           </div>
-
-          {/* Current Location Suggestion */}
           <button 
-            onClick={() => {
-              detectCurrentLocation();
-            }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-brand/5 border border-dashed border-slate-200 hover:border-brand/30 transition-all group mb-4"
+            onClick={detectLocation}
+            className="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-brand/5 border border-dashed border-slate-200 transition-all group mb-4"
           >
-            <div className="bg-brand/10 p-2 rounded-lg text-brand group-hover:scale-110 transition-transform">
-              <Crosshair size={18} />
-            </div>
-            <div className="text-left">
-              <p className="text-[13px] font-black text-brand leading-none mb-1">Use Current Location</p>
-              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Using GPS for better precision</p>
-            </div>
+            <Crosshair size={18} className="text-brand" />
+            <span className="text-[13px] font-black text-brand">Use GPS Location</span>
           </button>
-
-          {/* Search Results */}
-          <div className="max-h-[250px] overflow-y-auto pr-1 hide-scrollbar space-y-2">
+          <div className="max-h-[250px] overflow-y-auto hide-scrollbar space-y-2">
             {suggestions.map((res, i) => (
               <button 
                 key={i}
                 onClick={() => handleSelectSuggestion(res)}
-                className="w-full flex items-start gap-3 p-3.5 rounded-xl hover:bg-slate-50 transition-colors text-left group"
+                className="w-full flex items-start gap-3 p-3.5 rounded-xl hover:bg-slate-50 transition-colors text-left"
               >
-                <MapPinIcon size={16} className="text-slate-300 group-hover:text-brand mt-0.5" />
+                <MapPinIcon size={16} className="text-slate-300 mt-1" />
                 <div className="flex-1">
-                   <p className="text-[13px] font-bold text-slate-700 leading-snug">
-                    {res.components.suburb || res.components.neighbourhood || res.components.city || "Unknown"}
-                   </p>
-                   <p className="text-[11px] font-medium text-slate-400 truncate w-full">{res.formatted}</p>
+                   <p className="text-[13px] font-bold text-slate-700">{res.components.suburb || res.components.city || "Unknown"}</p>
+                   <p className="text-[11px] text-slate-400 truncate">{res.formatted}</p>
                 </div>
               </button>
             ))}
-            
-            {searchQuery && suggestions.length === 0 && !isLoading && (
-              <div className="text-center py-8">
-                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No matching areas found</p>
-              </div>
-            )}
-            
-            {status && (
-              <div className="text-center py-2">
-                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">{status}</p>
-              </div>
-            )}
           </div>
         </div>
       )}
