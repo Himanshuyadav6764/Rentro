@@ -27,6 +27,9 @@ Update `.env.local` values:
 - `CLOUDINARY_CLOUD_NAME`: Cloudinary cloud name
 - `CLOUDINARY_API_KEY`: Cloudinary API key
 - `CLOUDINARY_API_SECRET`: Cloudinary API secret
+- `GROQ_API_KEY`: Groq API key for title-based auto description generation
+- `NEXT_PUBLIC_IMAGE_AI_MODEL_URL` (optional): URL/path to custom trained TensorFlow.js `model.json`
+- `NEXT_PUBLIC_IMAGE_AI_LABELS` (optional): comma-separated class labels in exact model output order
 
 ## 2) Run
 
@@ -40,10 +43,18 @@ Open http://localhost:3000
 
 ## Image Upload API
 
+## AI Description API
+
+- `POST /api/ai/description`
+  - body: `{ "title": "Calculator" }`
+  - generates short rental description from title
+  - max output length: 20 words
+
 - `POST /api/upload`
   - body: multipart form-data with `file`
   - uploads image to Cloudinary folder `rentro_uploads`
-  - returns `{ "url": "https://..." }`
+  - accepts image files up to 8MB
+  - returns `{ "url": "https://...", "publicId": "rentro_uploads/..." }`
 
 - `POST /api/auth/send-otp`
   - body: `{ "phone": "+919876543210" }`
@@ -68,3 +79,26 @@ Open http://localhost:3000
 
 - OTP SMS gateway is not integrated yet; current OTP is generated/stored securely and echoed as `devOtp` only in development mode.
 - `trustScore` and `riskScore` fields are stored in user profile for future AI trust/risk/pricing modules.
+
+## Image Intelligence AI
+
+- Upload image in Create Listing Step 1.
+- AI auto-fills title and category.
+- Default model: MobileNet (`@tensorflow-models/mobilenet`).
+- If custom trained model is configured, app uses custom model first and falls back to MobileNet.
+
+### Train and connect custom model (quick)
+
+1. Train an image classifier in Teachable Machine (or any TFJS-compatible pipeline).
+2. Export as TensorFlow.js (model.json + shard files).
+3. Put exported files in `public/models/item-ai/`.
+4. Add to `.env.local`:
+
+```dotenv
+NEXT_PUBLIC_IMAGE_AI_MODEL_URL=/models/item-ai/model.json
+NEXT_PUBLIC_IMAGE_AI_LABELS=books,laptop,calculator,chair,cycle,others
+```
+
+5. Restart dev server.
+
+The label order in `NEXT_PUBLIC_IMAGE_AI_LABELS` must match your model output index order exactly.

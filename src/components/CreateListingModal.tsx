@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { X, Plus, ShieldCheck, CheckCircle2, Shield, ChevronDown, Check, ChevronRight, Activity } from 'lucide-react';
+import { X, Plus, Minus, ShieldCheck, CheckCircle2, Shield, ChevronDown, Check, ChevronRight, Activity } from 'lucide-react';
 import PricingAvailabilityStep from '@/components/PricingAvailabilityStep';
+import type { ListingSubmissionSummary } from '@/components/PricingAvailabilityStep';
+import { suggestFromImage } from '@/lib/imageIntelligence';
 
 const CATEGORY_GROUPS = [
   {
@@ -49,6 +51,8 @@ const CATEGORY_GROUPS = [
 interface CreateListingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onListingDone?: (summary: ListingSubmissionSummary | null) => void;
+  onViewListing?: (summary: ListingSubmissionSummary | null) => void;
 }
 
 type Step1Errors = {
@@ -57,12 +61,22 @@ type Step1Errors = {
   category?: string;
 };
 
-export default function CreateListingModal({ isOpen, onClose }: CreateListingModalProps) {
+type UploadedImage = {
+  url: string;
+  publicId: string;
+};
+
+export default function CreateListingModal({
+  isOpen,
+  onClose,
+  onListingDone,
+  onViewListing,
+}: CreateListingModalProps) {
   const [step, setStep] = useState(1);
   const [isClosing, setIsClosing] = useState(false);
   
   // Data States
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -70,6 +84,12 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
   const [itemTitle, setItemTitle] = useState('');
   const [itemDescription, setItemDescription] = useState('');
   const [step1Errors, setStep1Errors] = useState<Step1Errors>({});
+  const [listingSummary, setListingSummary] = useState<ListingSubmissionSummary | null>(null);
+  const [isAiDetecting, setIsAiDetecting] = useState(false);
+  const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [descriptionSuggestions, setDescriptionSuggestions] = useState<string[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
 
   if (!isOpen) return null;
 
@@ -78,8 +98,19 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
     setTimeout(() => {
       setIsClosing(false);
       setStep(1);
+      setListingSummary(null);
       onClose();
     }, 200);
+  };
+
+  const handleDone = () => {
+    onListingDone?.(listingSummary);
+    handleClose();
+  };
+
+  const handleViewListing = () => {
+    onViewListing?.(listingSummary);
+    handleClose();
   };
 
   const handleNext = () => {
@@ -112,7 +143,7 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const remainingSlots = 5 - imageUrls.length;
+    const remainingSlots = 5 - uploadedImages.length;
     if (remainingSlots <= 0) {
       setUploadMessage('You can upload up to 5 photos only.');
       e.target.value = '';
@@ -127,6 +158,7 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
     }
 
     setIsUploading(true);
+    setAiMessage(null);
     try {
       const uploadResults = await Promise.allSettled(
         filesToUpload.map(async (file) => {
@@ -138,22 +170,73 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
             body: formData,
           });
 
-          const data = await response.json();
-          if (!response.ok || !data.url) {
+          const data = (await response.json()) as { url?: string; publicId?: string; error?: string };
+          if (!response.ok || !data.url || !data.publicId) {
             throw new Error(data.error || 'Upload failed');
           }
-          return data.url as string;
+          return { url: data.url, publicId: data.publicId };
         })
       );
 
       const successfulUploads = uploadResults
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+        .filter(
+          (result): result is PromiseFulfilledResult<UploadedImage> => result.status === 'fulfilled'
+        )
         .map((result) => result.value);
 
       const failedUploads = uploadResults.filter((result) => result.status === 'rejected');
 
       if (successfulUploads.length > 0) {
-        setImageUrls((prev) => [...prev, ...successfulUploads]);
+        setUploadedImages((prev) => [...prev, ...successfulUploads]);
+
+        // Use first uploaded image as AI reference for quick auto-fill.
+        const referenceImage = successfulUploads[0]?.url;
+        if (referenceImage) {
+          setIsAiDetecting(true);
+          try {
+            const suggestion = await suggestFromImage(referenceImage);
+            const titleForDescription = itemTitle.trim() || suggestion.title;
+            setItemTitle((current) => (current.trim() ? current : suggestion.title));
+            setSelectedCategory((current) => {
+              if (!current.trim() || current === 'Books' || current === 'Others') {
+                return suggestion.category;
+              }
+              return current;
+            });
+
+            if (!itemDescription.trim()) {
+              setIsGeneratingDescription(true);
+              try {
+                const response = await fetch('/api/ai/description', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ title: titleForDescription, count: 50 }),
+                });
+                const payload = (await response.json()) as { success?: boolean; description?: string; suggestions?: string[]; error?: string };
+                if (response.ok && payload.description) {
+                  const suggestions = payload.suggestions?.length ? payload.suggestions : [payload.description];
+                  setDescriptionSuggestions(suggestions);
+                  setActiveSuggestionIndex(0);
+                  setItemDescription(suggestions[0]);
+                } else if (payload.error) {
+                  setAiMessage(payload.error);
+                }
+              } catch {
+                setAiMessage('Auto description generation failed. You can write it manually.');
+              } finally {
+                setIsGeneratingDescription(false);
+              }
+            }
+
+            setAiMessage(
+              `AI (${suggestion.source === 'custom' ? 'trained model' : 'MobileNet'}) detected: ${suggestion.title} (${Math.round(suggestion.confidence * 100)}%). Category set to ${suggestion.category}.`
+            );
+          } catch {
+            setAiMessage('AI could not confidently detect this item. Fill details manually.');
+          } finally {
+            setIsAiDetecting(false);
+          }
+        }
       }
 
       if (failedUploads.length > 0) {
@@ -176,12 +259,66 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
   };
 
   const removeImage = (index: number) => {
-    setImageUrls((prev) => prev.filter((_, idx) => idx !== index));
+    setUploadedImages((prev) => prev.filter((_, idx) => idx !== index));
     setUploadMessage(null);
   };
 
+  const handleGenerateDescription = () => {
+    if (!itemTitle.trim()) {
+      setAiMessage('Enter title first, then description can be generated.');
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    void (async () => {
+      try {
+        const response = await fetch('/api/ai/description', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: itemTitle, count: 50 }),
+        });
+        const payload = (await response.json()) as { success?: boolean; description?: string; suggestions?: string[]; error?: string };
+
+        if (!response.ok || !payload.description) {
+          setAiMessage(payload.error || 'Auto description generation failed.');
+          return;
+        }
+
+        const suggestions = payload.suggestions?.length ? payload.suggestions : [payload.description];
+        setDescriptionSuggestions(suggestions);
+        setActiveSuggestionIndex(0);
+        setItemDescription(suggestions[0]);
+        setAiMessage(`Description generated. Suggestion 1/${suggestions.length}`);
+      } catch {
+        setAiMessage('Auto description generation failed.');
+      } finally {
+        setIsGeneratingDescription(false);
+      }
+    })();
+  };
+
+  const goToPreviousSuggestion = () => {
+    if (!descriptionSuggestions.length) return;
+    setActiveSuggestionIndex((prev) => {
+      const nextIndex = prev === 0 ? descriptionSuggestions.length - 1 : prev - 1;
+      setItemDescription(descriptionSuggestions[nextIndex]);
+      setAiMessage(`Suggestion ${nextIndex + 1}/${descriptionSuggestions.length}`);
+      return nextIndex;
+    });
+  };
+
+  const goToNextSuggestion = () => {
+    if (!descriptionSuggestions.length) return;
+    setActiveSuggestionIndex((prev) => {
+      const nextIndex = prev === descriptionSuggestions.length - 1 ? 0 : prev + 1;
+      setItemDescription(descriptionSuggestions[nextIndex]);
+      setAiMessage(`Suggestion ${nextIndex + 1}/${descriptionSuggestions.length}`);
+      return nextIndex;
+    });
+  };
+
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-200 ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`fixed inset-0 z-[100] flex items-start md:items-center justify-center p-3 md:p-4 overflow-y-auto transition-opacity duration-200 ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
       
       {/* Backdrop */}
       <div 
@@ -190,7 +327,7 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
       ></div>
 
       {/* Modal Container */}
-      <div className={`relative bg-[#f8fafe] w-full max-w-[800px] rounded-xl shadow-2xl overflow-hidden flex flex-col transform transition-transform duration-200 ${isClosing ? 'scale-95' : 'scale-100'}`}>
+      <div className={`relative my-2 md:my-0 bg-[#f8fafe] w-full max-w-[800px] max-h-[92vh] rounded-xl shadow-2xl overflow-hidden flex flex-col transform transition-transform duration-200 ${isClosing ? 'scale-95' : 'scale-100'}`}>
         
         {/* Modal Header */}
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-start">
@@ -211,7 +348,7 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto bg-[#f8fafe]">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafe]">
           
           {step === 1 && (
             <div className="flex flex-col md:flex-row p-6 gap-8">
@@ -228,16 +365,16 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
                           <Activity className="w-8 h-8 text-[#1b52d6] mb-2 animate-spin" />
                           <span className="text-sm font-bold text-slate-500">Uploading photos...</span>
                         </div>
-                     ) : imageUrls.length > 0 ? (
+                     ) : uploadedImages.length > 0 ? (
                         <div className="w-full">
                           <div className="mb-2 flex items-center justify-between">
-                            <span className="text-xs font-semibold text-[#1c2b4c]">Uploaded {imageUrls.length}/5</span>
+                            <span className="text-xs font-semibold text-[#1c2b4c]">Uploaded {uploadedImages.length}/5</span>
                             <span className="text-[11px] text-slate-500">Tap to add more</span>
                           </div>
                           <div className="grid grid-cols-3 gap-2">
-                            {imageUrls.map((url, index) => (
-                              <div key={`${url}-${index}`} className="relative h-16 overflow-hidden rounded-md border border-slate-200">
-                                <Image src={url} alt={`Uploaded ${index + 1}`} fill sizes="64px" className="object-cover" />
+                            {uploadedImages.map((image, index) => (
+                              <div key={`${image.publicId}-${index}`} className="relative h-16 overflow-hidden rounded-md border border-slate-200">
+                                <Image src={image.url} alt={`Uploaded ${index + 1}`} fill sizes="64px" className="object-cover" />
                                 {index === 0 && (
                                   <span className="absolute left-1 top-1 rounded bg-[#1b52d6] px-1 py-0.5 text-[9px] font-semibold text-white">
                                     Thumbnail
@@ -271,6 +408,12 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
                   </p>
                   {uploadMessage && (
                     <p className="text-[12px] text-[#1c2b4c] mt-1">{uploadMessage}</p>
+                  )}
+                  {isAiDetecting && (
+                    <p className="text-[12px] text-[#1b52d6] mt-1">Analyzing image with AI...</p>
+                  )}
+                  {aiMessage && (
+                    <p className="text-[12px] text-[#1c2b4c] mt-1">{aiMessage}</p>
                   )}
                 </div>
 
@@ -327,7 +470,40 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
                 </div>
 
                 <div>
-                  <label className="block text-[14px] font-medium text-[#1c2b4c] mb-1.5">Description</label>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="block text-[14px] font-medium text-[#1c2b4c]">Description</label>
+                    <div className="flex items-center gap-2">
+                      {descriptionSuggestions.length > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={goToPreviousSuggestion}
+                            className="grid h-5 w-5 place-items-center rounded border border-slate-300 text-slate-600 hover:bg-slate-50"
+                            title="Previous suggestion"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={goToNextSuggestion}
+                            className="grid h-5 w-5 place-items-center rounded border border-slate-300 text-slate-600 hover:bg-slate-50"
+                            title="Next suggestion"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                          <span className="text-[11px] text-slate-500">{activeSuggestionIndex + 1}/{descriptionSuggestions.length}</span>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleGenerateDescription}
+                        disabled={isGeneratingDescription}
+                        className="text-[12px] font-semibold text-[#1b52d6] hover:underline disabled:opacity-50 disabled:no-underline"
+                      >
+                        {isGeneratingDescription ? 'Generating...' : 'Auto Generate'}
+                      </button>
+                    </div>
+                  </div>
                   <textarea 
                     placeholder="Describe the item&apos;s features" 
                     rows={2}
@@ -429,33 +605,89 @@ export default function CreateListingModal({ isOpen, onClose }: CreateListingMod
           {step === 2 && (
             <PricingAvailabilityStep
               onBack={handleBack}
-              onSuccess={handleNext}
+              onSuccess={(summary) => {
+                setListingSummary(summary);
+                setStep(3);
+              }}
               listingDraft={{
                 title: itemTitle,
                 description: itemDescription,
                 category: selectedCategory,
-                image_urls: imageUrls,
+                image_urls: uploadedImages.map((image) => image.url),
+                image_public_ids: uploadedImages.map((image) => image.publicId),
               }}
             />
           )}
 
           {step === 3 && (
-            <div className="p-10 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="p-6 md:p-10 flex flex-col items-center justify-center min-h-[400px]">
                <div className="w-20 h-20 bg-[#eaf8f4] rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-lg">
                  <CheckCircle2 className="w-12 h-12 text-[#219653] fill-current" stroke="white" strokeWidth={1} />
                </div>
                <h2 className="text-2xl font-bold text-[#1c2b4c] mb-2 text-center">Listing Published!</h2>
-               <p className="text-slate-500 text-center mb-8 max-w-md">Your Scientific Calculator has been successfully listed. Nearby students can now see it and send rental requests.</p>
+               <p className="text-slate-500 text-center mb-6 max-w-md">
+                 Your {listingSummary?.title || 'listing'} has been successfully listed. Nearby students can now see it and send rental requests.
+               </p>
+
+               <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm mb-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Title</p>
+                     <p className="text-sm font-semibold text-[#1c2b4c] mt-1">{listingSummary?.title || itemTitle}</p>
+                   </div>
+                   <div>
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Category</p>
+                     <p className="text-sm font-semibold text-[#1c2b4c] mt-1">{listingSummary?.category || selectedCategory}</p>
+                   </div>
+                   <div className="md:col-span-2">
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</p>
+                     <p className="text-sm text-slate-700 mt-1">{listingSummary?.description || itemDescription}</p>
+                   </div>
+                   <div>
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Availability</p>
+                     <p className="text-sm text-slate-700 mt-1">
+                       {listingSummary?.availability_days?.join(', ') || 'N/A'}
+                     </p>
+                   </div>
+                   <div>
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date Range</p>
+                     <p className="text-sm text-slate-700 mt-1">
+                       {listingSummary?.start_date || 'N/A'} to {listingSummary?.end_date || 'N/A'}
+                     </p>
+                   </div>
+                   <div>
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rent</p>
+                     <p className="text-sm text-slate-700 mt-1">Rs {listingSummary?.rent_price ?? 0}/day</p>
+                   </div>
+                   <div>
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Deposit</p>
+                     <p className="text-sm text-slate-700 mt-1">Rs {listingSummary?.deposit ?? 0}</p>
+                   </div>
+                 </div>
+
+                 {(listingSummary?.image_urls?.length || 0) > 0 && (
+                   <div className="mt-4">
+                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Uploaded Photos</p>
+                     <div className="grid grid-cols-4 gap-2">
+                       {(listingSummary?.image_urls || []).slice(0, 4).map((url, index) => (
+                         <div key={`${url}-${index}`} className="relative h-16 overflow-hidden rounded-md border border-slate-200">
+                           <Image src={url} alt={`Listing ${index + 1}`} fill sizes="64px" className="object-cover" />
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+               </div>
                
                <div className="flex gap-4 w-full max-w-sm">
                  <button 
-                  onClick={handleClose}
+                  onClick={handleViewListing}
                   className="flex-1 bg-white border border-slate-300 text-[#1c2b4c] py-3 rounded-md font-bold hover:bg-slate-50 transition-colors"
                  >
                    View Listing
                  </button>
                  <button 
-                  onClick={handleClose}
+                  onClick={handleDone}
                   className="flex-1 bg-[#1b52d6] text-white py-3 rounded-md font-bold shadow-sm shadow-blue-500/20 hover:bg-[#103387] transition-colors"
                  >
                    Done

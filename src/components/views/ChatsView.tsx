@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   ChevronLeft, 
   MessageCircle, 
@@ -38,6 +38,10 @@ interface Chat {
   avatar?: string;
   messages: Message[];
 }
+
+type ChatsViewProps = {
+  openOwnerName?: string | null;
+};
 
 const INITIAL_CHATS: Chat[] = [
   {
@@ -81,13 +85,45 @@ const INITIAL_CHATS: Chat[] = [
   }
 ];
 
-export default function ChatsView() {
+export default function ChatsView({ openOwnerName }: ChatsViewProps) {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(INITIAL_CHATS);
   const [newMessage, setNewMessage] = useState("");
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
+  const lastOpenedOwnerRef = useRef<string | null>(null);
 
   const selectedChat = chats.find(c => c.id === selectedChatId);
+
+  useEffect(() => {
+    const ownerName = openOwnerName?.trim();
+    if (!ownerName) return;
+    if (lastOpenedOwnerRef.current === ownerName) return;
+
+    const ownerNameLower = ownerName.toLowerCase();
+    const existing = chats.find((chat) => chat.name.toLowerCase() === ownerNameLower);
+
+    if (existing) {
+      setSelectedChatId(existing.id);
+      setActiveTab('all');
+      lastOpenedOwnerRef.current = ownerName;
+      return;
+    }
+
+    const newChat: Chat = {
+      id: `owner-${Date.now()}`,
+      name: ownerName,
+      product: 'Rental Chat',
+      lastMessage: 'Start your conversation',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      trustScore: 75,
+      messages: [],
+    };
+
+    setChats((prev) => [newChat, ...prev]);
+    setSelectedChatId(newChat.id);
+    setActiveTab('all');
+    lastOpenedOwnerRef.current = ownerName;
+  }, [openOwnerName, chats]);
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedChatId) return;
@@ -136,9 +172,9 @@ export default function ChatsView() {
     : chats.filter(c => c.isPending);
 
   return (
-    <div className="flex h-full w-full bg-white max-w-6xl mx-auto overflow-hidden relative">
+    <div className="flex h-full w-full bg-white max-w-6xl mx-auto overflow-hidden relative min-w-0">
       {/* Left Sidebar (Chat List) */}
-      <div className={`md:w-[35%] lg:w-[30%] min-w-[320px] bg-[#f8fafe] border-r border-slate-200 flex flex-col ${selectedChatId ? 'hidden md:flex' : 'flex w-full md:w-[35%]'}`}>
+      <div className={`md:w-[35%] lg:w-[30%] md:min-w-[320px] min-w-0 bg-[#f8fafe] border-r border-slate-200 flex flex-col ${selectedChatId ? 'hidden md:flex' : 'flex w-full md:w-[35%]'}`}>
         <div className="px-5 py-3 md:py-4 border-b border-slate-200 flex items-center justify-between bg-white text-brand">
           <div className="flex items-center gap-3">
             <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
@@ -225,7 +261,7 @@ export default function ChatsView() {
       </div>
 
       {/* Right Content / Chat Detail */}
-      <div className={`flex-1 bg-white flex flex-col ${!selectedChatId ? 'hidden md:flex items-center justify-center bg-slate-50/50' : 'flex h-full'}`}>
+      <div className={`flex-1 bg-white flex flex-col min-w-0 ${!selectedChatId ? 'hidden md:flex items-center justify-center bg-slate-50/50' : 'flex h-full'}`}>
          {!selectedChatId ? (
            <div className="text-center p-6 md:p-12 animate-in fade-in duration-1000">
              <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-[0_10px_40px_rgba(27,82,214,0.1)] ring-1 ring-slate-100 relative">
@@ -238,7 +274,7 @@ export default function ChatsView() {
              <p className="text-xs md:text-sm text-slate-500 max-w-[280px] md:max-w-sm mx-auto font-medium leading-relaxed">Select a user to start bargaining and renting gear!</p>
            </div>
          ) : (
-           <div className="flex flex-col h-full bg-white overflow-hidden animate-in slide-in-from-right-2 duration-300">
+           <div className="flex flex-col h-full bg-white overflow-hidden animate-in slide-in-from-right-2 duration-300 min-h-0">
              {/* Dynamic Chat Header */}
              <header className="bg-white px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-slate-100 sticky top-0 z-10 shadow-sm">
                <div className="flex items-center gap-3 md:gap-4">
@@ -280,7 +316,7 @@ export default function ChatsView() {
              </header>
 
              {/* Dynamic Content Area */}
-             <div className="flex-1 overflow-y-auto flex flex-col hide-scrollbar bg-slate-50/10">
+             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col hide-scrollbar bg-slate-50/10">
                
                {/* Suggestion Bar */}
                <div className="flex gap-2 px-4 md:px-6 py-3 md:py-4 overflow-x-auto hide-scrollbar bg-white border-b border-slate-50 select-none">
@@ -359,7 +395,7 @@ export default function ChatsView() {
              </div>
 
              {/* Footer Input Area */}
-             <footer className="p-4 md:p-6 pt-2 pb-6 md:pb-8 bg-white border-t border-slate-50 sticky bottom-0 z-20">
+             <footer className="p-4 md:p-6 pt-2 pb-4 md:pb-8 bg-white border-t border-slate-50 sticky bottom-0 z-20">
                 <div className="flex items-center gap-3 max-w-4xl mx-auto">
                   <div className="flex-1 flex items-center bg-slate-50 border border-slate-200/50 rounded-2xl md:rounded-[2rem] px-2 md:px-3 focus-within:ring-4 ring-brand/5 transition-all shadow-inner relative group">
                     <button className="p-2 md:p-3 text-slate-400 hover:text-brand transition-colors">
