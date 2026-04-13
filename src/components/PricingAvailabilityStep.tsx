@@ -6,15 +6,34 @@ import { getAISuggestedPrice, type DemandLevel, type ItemCondition } from '@/lib
 
 const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+export type ListingSubmissionSummary = {
+  title: string;
+  description: string;
+  category: string;
+  image_urls: string[];
+  image_public_ids: string[];
+  availability_days: string[];
+  start_date: string;
+  end_date: string;
+  duration: number;
+  rent_price: number;
+  deposit: number;
+  ai_suggested_price: number;
+  itemId?: string;
+};
+
+type ListingDraft = {
+  title: string;
+  description: string;
+  category: string;
+  image_urls: string[];
+  image_public_ids: string[];
+};
+
 type PricingAvailabilityStepProps = {
   onBack?: () => void;
-  onSuccess?: () => void;
-  listingDraft?: {
-    title: string;
-    description: string;
-    category: string;
-    image_urls: string[];
-  };
+  onSuccess?: (summary: ListingSubmissionSummary) => void;
+  listingDraft?: ListingDraft;
 };
 
 type ValidationErrors = {
@@ -123,6 +142,7 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
           description: listingDraft?.description || '',
           category: listingDraft?.category || 'Others',
           image_urls: listingDraft?.image_urls || [],
+          image_public_ids: listingDraft?.image_public_ids || [],
           availability_days: selectedDays,
           start_date: startDate,
           end_date: endDate,
@@ -134,9 +154,9 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
       });
 
       const rawResponse = await response.text();
-      let payload: { error?: string } = {};
+      let payload: { error?: string; itemId?: string } = {};
       try {
-        payload = JSON.parse(rawResponse) as { error?: string };
+        payload = JSON.parse(rawResponse) as { error?: string; itemId?: string };
       } catch {
         payload = {
           error: rawResponse || 'Unexpected server response while saving data.',
@@ -149,8 +169,24 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
       }
 
       setToast('Pricing and availability saved successfully.');
+      const summary: ListingSubmissionSummary = {
+        title: listingDraft?.title || '',
+        description: listingDraft?.description || '',
+        category: listingDraft?.category || 'Others',
+        image_urls: listingDraft?.image_urls || [],
+        image_public_ids: listingDraft?.image_public_ids || [],
+        availability_days: selectedDays,
+        start_date: startDate,
+        end_date: endDate,
+        duration,
+        rent_price: rentPrice,
+        deposit,
+        ai_suggested_price: aiSuggestion.suggested_price,
+        itemId: payload.itemId,
+      };
+
       setTimeout(() => {
-        onSuccess?.();
+        onSuccess?.(summary);
       }, 500);
     } catch {
       setToast('Network error while saving data.');

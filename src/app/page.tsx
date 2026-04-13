@@ -18,17 +18,31 @@ import RentalsView from "@/components/views/RentalsView";
 import ProfileView from "@/components/views/ProfileView";
 import ProductDetailView from "@/components/views/ProductDetailView";
 import CreateListingModal from "@/components/CreateListingModal";
+import type { ListingSubmissionSummary } from "@/components/PricingAvailabilityStep";
 
 export default function AppHome() {
   const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("chats");
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [createdListings, setCreatedListings] = useState<ListingSubmissionSummary[]>([]);
+  const [chatTargetOwnerName, setChatTargetOwnerName] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const isMobileHomeView = activeTab === 'home';
 
   const renderContent = () => {
     switch (activeTab) {
       case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
-      case "chats": return <ChatsView />;
-      case "rentals": return <RentalsView />;
+      case "chats": return <ChatsView openOwnerName={chatTargetOwnerName} />;
+      case "rentals": return (
+        <RentalsView
+          createdListings={createdListings}
+          searchQuery={searchText}
+          onOpenOwnerChat={(ownerName) => {
+            setChatTargetOwnerName(ownerName);
+            setActiveTab("chats");
+          }}
+        />
+      );
       case "profile": return <ProfileView onOpenSellModal={() => setIsListingModalOpen(true)} />;
       default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
     }
@@ -96,7 +110,7 @@ export default function AppHome() {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         
         {/* Top Navbar (Persistent on all views) */}
-        <header className="px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md z-40 border-b border-slate-50">
+        <header className={`px-6 py-4 items-center justify-between bg-white/80 backdrop-blur-md z-40 border-b border-slate-50 ${isMobileHomeView ? 'flex' : 'hidden md:flex'}`}>
           <div className="flex items-center gap-2 md:hidden">
             <div className="bg-[#1b52d6] p-1.5 rounded-lg text-white">
               <BookOpen size={20} />
@@ -110,6 +124,8 @@ export default function AppHome() {
               <Search className="w-5 h-5 text-slate-400 mr-2" />
               <input 
                 type="text" 
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
                 placeholder={getSearchPlaceholder()} 
                 className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold placeholder:text-slate-300"
               />
@@ -122,18 +138,17 @@ export default function AppHome() {
               <Bell size={20} fill="currentColor" className="opacity-20" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden hidden sm:flex items-center justify-center">
-              <User size={20} className="text-[#1b52d6] opacity-80" />
-            </div>
           </div>
         </header>
 
         {/* Mobile Search - only on mobile */}
-        <div className="bg-[#1b52d6] px-6 py-4 md:hidden shadow-lg shadow-brand/10">
+        <div className={`bg-[#1b52d6] px-6 py-4 md:hidden shadow-lg shadow-brand/10 ${isMobileHomeView ? 'block' : 'hidden'}`}>
           <div className="bg-white rounded-xl flex items-center h-12 px-4 shadow-sm">
             <Search className="w-5 h-5 text-slate-300 mr-2" />
             <input 
               type="text" 
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
               placeholder={getSearchPlaceholder()} 
               className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold"
             />
@@ -141,7 +156,7 @@ export default function AppHome() {
         </div>
 
         {/* Dynamic View Container */}
-        <div className="flex-1 overflow-hidden relative pb-[72px] md:pb-0">
+        <div className={`flex-1 overflow-hidden relative ${activeTab === 'chats' ? 'pb-0' : 'pb-[72px] md:pb-0'}`}>
           {renderContent()}
           {selectedProductId && (
             <ProductDetailView 
@@ -158,11 +173,29 @@ export default function AppHome() {
               }}
             />
           )}
-          <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
+          <CreateListingModal
+            isOpen={isListingModalOpen}
+            onClose={() => setIsListingModalOpen(false)}
+            onListingDone={() => {
+              setIsListingModalOpen(false);
+            }}
+            onViewListing={(summary) => {
+              if (summary) {
+                setCreatedListings((prev) => {
+                  if (summary.itemId && prev.some((item) => item.itemId === summary.itemId)) {
+                    return prev;
+                  }
+                  return [...prev, summary];
+                });
+              }
+              setIsListingModalOpen(false);
+              setActiveTab("rentals");
+            }}
+          />
         </div>
 
         {/* Floating Mobile Bottom Nav */}
-        <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-white/95 backdrop-blur-md border-t border-slate-100 flex px-2 z-50 md:hidden justify-around items-center">
+        <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-white/95 backdrop-blur-md border-t border-slate-100 px-2 z-50 md:hidden flex justify-around items-center">
           <MobileNavLink icon={<Home size={22} />} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
           <MobileNavLink icon={<MessageCircle size={22} />} active={activeTab === 'chats'} onClick={() => setActiveTab('chats')} badge={2} />
           
