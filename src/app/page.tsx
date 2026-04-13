@@ -64,8 +64,16 @@ export default function AppHome() {
   const renderContent = () => {
     switch (activeTab) {
       case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
-      case "chats": return <ChatsView />;
-      case "rentals": return <RentalsView />;
+      case "chats": 
+        if (!isLoggedIn) {
+          return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
+        }
+        return <ChatsView />;
+      case "rentals": 
+        if (!isLoggedIn) {
+          return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
+        }
+        return <RentalsView />;
       case "profile": 
         if (!isLoggedIn) {
           return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
