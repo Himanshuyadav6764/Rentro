@@ -2,12 +2,33 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import Item from '@/models/Item';
 import { connectToDatabase } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 
 const bodySchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
   category: z.string().trim().min(1),
-  image_urls: z.array(z.string()).max(5).optional().default([]),
+  image_urls: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .refine(
+          (value) => {
+            if (value.startsWith('/uploads/')) {
+              return true;
+            }
+
+            return z.url().safeParse(value).success;
+          },
+          { message: 'Invalid image URL format' }
+        )
+    )
+    .max(5)
+    .optional()
+    .default([]),
+  image_public_ids: z.array(z.string().trim().min(1)).max(5).optional().default([]),
   availability_days: z.array(z.string()).min(1),
   start_date: z.string().min(1),
   end_date: z.string().min(1),
@@ -21,6 +42,7 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
     const payload = bodySchema.parse(json);
+    const currentUser = await getCurrentUser();
 
     if (payload.deposit < payload.rent_price) {
       return NextResponse.json(
@@ -43,6 +65,10 @@ export async function POST(request: Request) {
       description: payload.description,
       category: payload.category,
       image_urls: payload.image_urls,
+      image_public_ids: payload.image_public_ids,
+      owner_id: currentUser?._id?.toString(),
+      renter_name: 'Awaiting requests',
+      status: 'pending',
       availability_days: payload.availability_days,
       start_date: startDate,
       end_date: endDate,
@@ -50,6 +76,10 @@ export async function POST(request: Request) {
       rent_price: payload.rent_price,
       deposit: payload.deposit,
       ai_suggested_price: payload.ai_suggested_price,
+      earnings: payload.rent_price * payload.duration,
+      issues_count: 0,
+      late_returns_count: 0,
+      behavior_notes: [],
     });
 
     return NextResponse.json({ success: true, itemId: item._id }, { status: 201 });
