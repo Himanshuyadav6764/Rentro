@@ -33,6 +33,8 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
    const router = useRouter();
    const [item, setItem] = React.useState<ListingData | null>(null);
    const [isLoadingItem, setIsLoadingItem] = React.useState(false);
+   const [activeImageIndex, setActiveImageIndex] = React.useState(0);
+   const imageTrackRef = React.useRef<HTMLDivElement | null>(null);
 
    React.useEffect(() => {
       let cancelled = false;
@@ -70,11 +72,45 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
    const title = item?.title || 'MacBook Pro M2';
    const dailyPrice = item?.rent_price || 250;
    const deposit = item?.deposit || 1000;
-   const imageUrl =
-      item?.image_urls?.[0] ||
-      'https://images.unsplash.com/photo-1517336714460-4c742a27744b?q=80&w=2000&auto=format&fit=crop';
+   const images =
+      item?.image_urls?.length
+         ? item.image_urls.slice(0, 5)
+         : ['https://images.unsplash.com/photo-1517336714460-4c742a27744b?q=80&w=2000&auto=format&fit=crop'];
    const locationLabel = item?.location_label || item?.location_area || item?.location_city || 'Campus pickup location';
    const totalEstimate = dailyPrice * 7;
+
+   React.useEffect(() => {
+      setActiveImageIndex(0);
+      const track = imageTrackRef.current;
+      if (track) {
+         track.scrollTo({ left: 0, behavior: 'auto' });
+      }
+   }, [productId]);
+
+   const syncHeroActiveIndex = React.useCallback(() => {
+      const track = imageTrackRef.current;
+      if (!track) {
+         return;
+      }
+
+      const width = track.clientWidth || 1;
+      const nextIndex = Math.round(track.scrollLeft / width);
+      setActiveImageIndex(Math.max(0, Math.min(nextIndex, images.length - 1)));
+   }, [images.length]);
+
+   const scrollHeroTo = React.useCallback(
+      (index: number) => {
+         const track = imageTrackRef.current;
+         if (!track) {
+            return;
+         }
+
+         const bounded = Math.max(0, Math.min(index, images.length - 1));
+         track.scrollTo({ left: bounded * track.clientWidth, behavior: 'smooth' });
+         setActiveImageIndex(bounded);
+      },
+      [images.length],
+   );
 
    const handleMessageOwner = () => {
       if (productId && item?.owner_id) {
@@ -124,14 +160,58 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
             {/* Immersive Image Header */}
             <div className="relative w-full h-[55vh] md:h-[65vh] min-h-[450px]">
                <div className="absolute inset-0 bg-slate-200">
-                  {/* Using a robust laptop image from Unsplash */}
-                  <img
-                     src={imageUrl}
-                     alt={title}
-                     className="w-full h-full object-cover"
-                  />
+                  <div
+                     ref={imageTrackRef}
+                     className="hide-scrollbar flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
+                     onScroll={syncHeroActiveIndex}
+                  >
+                     {images.map((imageUrl, imageIndex) => (
+                        <div key={`${imageUrl}-${imageIndex}`} className="min-w-full h-full snap-start bg-slate-200">
+                           <img
+                              src={imageUrl}
+                              alt={`${title} image ${imageIndex + 1}`}
+                              className="w-full h-full object-contain"
+                              draggable={false}
+                           />
+                        </div>
+                     ))}
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[#f8faff]"></div>
                </div>
+
+               {images.length > 1 && (
+                  <>
+                     <button
+                        type="button"
+                        aria-label="Previous image"
+                        onClick={() => scrollHeroTo(activeImageIndex - 1)}
+                        className="absolute left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-white/85 backdrop-blur-xl rounded-2xl shadow-xl flex items-center justify-center text-slate-800 border border-white/50"
+                     >
+                        <ChevronLeft size={20} />
+                     </button>
+                     <button
+                        type="button"
+                        aria-label="Next image"
+                        onClick={() => scrollHeroTo(activeImageIndex + 1)}
+                        className="absolute right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-white/85 backdrop-blur-xl rounded-2xl shadow-xl flex items-center justify-center text-slate-800 border border-white/50"
+                     >
+                        <ChevronRight size={20} />
+                     </button>
+                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5">
+                        {images.map((_, dotIndex) => (
+                           <button
+                              key={`hero-dot-${dotIndex}`}
+                              type="button"
+                              aria-label={`Go to image ${dotIndex + 1}`}
+                              onClick={() => scrollHeroTo(dotIndex)}
+                              className={`h-2 rounded-full transition-all ${
+                                 dotIndex === activeImageIndex ? 'w-5 bg-white' : 'w-2 bg-white/60'
+                              }`}
+                           />
+                        ))}
+                     </div>
+                  </>
+               )}
 
                {/* Price Floating Plate */}
                <div className="absolute bottom-16 right-8 md:right-16 bg-brand text-white p-6 rounded-[2.8rem] shadow-[0_20px_60px_rgba(27,82,214,0.4)] border border-white/20 animate-in zoom-in duration-700 delay-300">

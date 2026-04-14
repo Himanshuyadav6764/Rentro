@@ -3,11 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.mjs",
-    "dev:next": "next dev",
+    "dev": "next dev",
+    "dev:socket": "node server.mjs",
     "build": "next build",
-    "start": "cross-env NODE_ENV=production node server.mjs",
+    "start": "next start",
+    "start:socket": "cross-env NODE_ENV=production node server.mjs",
     "lint": "eslint"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@tensorflow-models/mobilenet": "^2.1.1",

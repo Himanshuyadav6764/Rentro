@@ -36,6 +36,42 @@ function parseOptionalNumber(value: string | null) {
   return parsed;
 }
 
+function expandTokenVariants(token: string) {
+  const normalized = token.trim().toLowerCase();
+  if (!normalized) {
+    return [] as string[];
+  }
+
+  const variants = new Set<string>([normalized]);
+
+  if (normalized.endsWith('es') && normalized.length > 3) {
+    variants.add(normalized.slice(0, -2));
+  }
+
+  if (normalized.endsWith('s') && normalized.length > 2) {
+    variants.add(normalized.slice(0, -1));
+  }
+
+  const synonymMap: Record<string, string[]> = {
+    mobile: ['mobiles', 'phone', 'phones', 'smartphone', 'smartphones'],
+    mobiles: ['mobile', 'phone', 'phones', 'smartphone', 'smartphones'],
+    phone: ['phones', 'mobile', 'mobiles', 'smartphone', 'smartphones'],
+    phones: ['phone', 'mobile', 'mobiles', 'smartphone', 'smartphones'],
+    book: ['books', 'notebook', 'notebooks', 'notes'],
+    books: ['book', 'notebook', 'notebooks', 'notes'],
+    laptop: ['laptops', 'notebook', 'notebooks'],
+    laptops: ['laptop', 'notebook', 'notebooks'],
+    calculator: ['calculators', 'calc'],
+    calculators: ['calculator', 'calc'],
+  };
+
+  for (const synonym of synonymMap[normalized] || []) {
+    variants.add(synonym);
+  }
+
+  return Array.from(variants);
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -101,11 +137,17 @@ export async function GET(request: Request) {
     });
 
     const filtered = mappedListings.filter((listing) => {
+      const searchableText = `${listing.title || ''} ${listing.description || ''} ${listing.category || ''} ${listing.location_label || ''} ${listing.location_area || ''} ${listing.location_city || ''}`
+        .toLowerCase()
+        .trim();
+
+      const searchTokens = search.split(/\s+/).filter(Boolean);
       const matchesSearch =
-        !search ||
-        `${listing.title || ''} ${listing.description || ''} ${listing.category || ''}`
-          .toLowerCase()
-          .includes(search);
+        searchTokens.length === 0 ||
+        searchTokens.every((token) => {
+          const variants = expandTokenVariants(token);
+          return variants.some((variant) => searchableText.includes(variant));
+        });
 
       const matchesCategory =
         !category || category === 'all' || (listing.category || '').toLowerCase() === category;
@@ -126,7 +168,13 @@ export async function GET(request: Request) {
       }
 
       if (listing.distance_km === undefined) {
-        return false;
+        // Keep listings with missing coordinates in response so search still returns data.
+        return true;
+      }
+
+      // In explicit search mode, return all matching dashboard data and rank by distance buckets.
+      if (search) {
+        return true;
       }
 
       return listing.distance_km <= maxDistanceKm;
@@ -142,7 +190,7 @@ export async function GET(request: Request) {
 
       const bucket = (distanceKm: number | undefined) => {
         if (distanceKm === undefined) {
-          return 2;
+          return 3;
         }
 
         if (distanceKm <= 10) {
@@ -161,6 +209,13 @@ export async function GET(request: Request) {
 
       if (bucketA !== bucketB) {
         return bucketA - bucketB;
+      }
+
+      const distanceA = a.distance_km ?? Number.POSITIVE_INFINITY;
+      const distanceB = b.distance_km ?? Number.POSITIVE_INFINITY;
+
+      if (distanceA !== distanceB) {
+        return distanceA - distanceB;
       }
 
       return createdB - createdA;
