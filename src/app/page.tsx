@@ -15,6 +15,7 @@ import {
   Heart
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import HomeView from "@/components/views/HomeView";
 import ChatsView from "@/components/views/ChatsView";
@@ -22,6 +23,7 @@ import RentalsView from "@/components/views/RentalsView";
 import ProfileView from "@/components/views/ProfileView";
 import ProductDetailView from "@/components/views/ProductDetailView";
 import CreateListingModal from "@/components/CreateListingModal";
+import type { ListingSubmissionSummary } from "@/components/PricingAvailabilityStep";
 import LoginView from "@/components/views/LoginView";
 import WishlistSidebar from "@/components/WishlistSidebar";
 import ProfileDropdown from "@/components/ProfileDropdown";
@@ -49,8 +51,13 @@ type CurrentUser = {
   providers?: string[];
 };
 
+type RentalsLandingTab = "my_listings" | "my_rentals" | "requests" | "history";
+
 export default function AppHome() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("home");
+  const [initialRentalsTab, setInitialRentalsTab] = useState<RentalsLandingTab>("my_listings");
+  const [createdListings, setCreatedListings] = useState<ListingSubmissionSummary[]>([]);
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -64,6 +71,7 @@ export default function AppHome() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -73,6 +81,32 @@ export default function AppHome() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    const rentalsTab = params.get("rentalsTab");
+    const seededSearch = params.get("search");
+
+    if (tab === "home" || tab === "chats" || tab === "rentals" || tab === "profile") {
+      setActiveTab(tab);
+    }
+
+    if (rentalsTab === "my_listings" || rentalsTab === "my_rentals" || rentalsTab === "requests" || rentalsTab === "history") {
+      setInitialRentalsTab(rentalsTab);
+      if (tab !== "home" && tab !== "chats" && tab !== "profile") {
+        setActiveTab("rentals");
+      }
+    }
+
+    if (seededSearch) {
+      setSearchQuery(seededSearch);
+    }
   }, []);
 
   const hydrateAuthState = useCallback(async () => {
@@ -183,6 +217,39 @@ export default function AppHome() {
     [],
   );
 
+  const appendCreatedListing = useCallback((summary: ListingSubmissionSummary | null) => {
+    if (!summary) {
+      return;
+    }
+
+    setCreatedListings((prev) => {
+      if (summary.itemId && prev.some((listing) => listing.itemId === summary.itemId)) {
+        return prev;
+      }
+
+      return [summary, ...prev];
+    });
+  }, []);
+
+  const handleListingSaved = useCallback((summary: ListingSubmissionSummary | null) => {
+    appendCreatedListing(summary);
+    router.push("/my-rentals?tab=my-listings");
+    router.refresh();
+  }, [appendCreatedListing, router]);
+
+  const handleViewListing = useCallback((summary: ListingSubmissionSummary | null) => {
+    appendCreatedListing(summary);
+
+    if (summary?.itemId) {
+      router.push(`/listing/${summary.itemId}`);
+      router.refresh();
+      return;
+    }
+
+    router.push("/my-rentals?tab=my-listings");
+    router.refresh();
+  }, [appendCreatedListing, router]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -285,7 +352,7 @@ export default function AppHome() {
         if (!isLoggedIn) {
           return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
         }
-        return <RentalsView />;
+        return <RentalsView createdListings={createdListings} initialTab={initialRentalsTab} searchQuery={searchQuery} />;
       case "profile": 
         if (!isLoggedIn) {
           return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
@@ -442,11 +509,12 @@ export default function AppHome() {
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             <button 
+              ref={profileTriggerRef}
               onClick={() => {
                 if (!isLoggedIn) {
                   setActiveTab("profile");
                 } else {
-                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                  setIsProfileDropdownOpen((prev) => !prev);
                 }
               }}
               className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden hidden sm:flex items-center justify-center hover:bg-blue-100 transition-all active:scale-95"
@@ -518,7 +586,12 @@ export default function AppHome() {
               }}
             />
           )}
-          <CreateListingModal isOpen={isListingModalOpen} onClose={() => setIsListingModalOpen(false)} />
+          <CreateListingModal
+            isOpen={isListingModalOpen}
+            onClose={() => setIsListingModalOpen(false)}
+            onListingDone={handleListingSaved}
+            onViewListing={handleViewListing}
+          />
           <WishlistSidebar isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
           <ProfileDropdown 
              isOpen={isProfileDropdownOpen} 
@@ -529,13 +602,29 @@ export default function AppHome() {
                 setIsProfileDropdownOpen(false);
              }}
              userName={currentUserName}
+             triggerRef={profileTriggerRef}
           />
         </div>
 
         {/* ... (Bottom Nav keeps same) ... */}
         <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-white/95 backdrop-blur-md border-t border-slate-100 flex px-2 z-50 md:hidden justify-around items-center">
-          <MobileNavLink icon={<Home size={22} />} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
-          <MobileNavLink icon={<MessageCircle size={22} />} active={activeTab === 'chats'} onClick={() => setActiveTab('chats')} badge={2} />
+          <MobileNavLink
+            icon={<Home size={22} />}
+            active={activeTab === 'home'}
+            onClick={() => {
+              setIsProfileDropdownOpen(false);
+              setActiveTab('home');
+            }}
+          />
+          <MobileNavLink
+            icon={<MessageCircle size={22} />}
+            active={activeTab === 'chats'}
+            onClick={() => {
+              setIsProfileDropdownOpen(false);
+              setActiveTab('chats');
+            }}
+            badge={2}
+          />
 
           <button
             onClick={() => setIsListingModalOpen(true)}
@@ -544,8 +633,22 @@ export default function AppHome() {
             <Plus size={28} strokeWidth={3} />
           </button>
 
-          <MobileNavLink icon={<MinusCircle size={22} />} active={activeTab === 'rentals'} onClick={() => setActiveTab('rentals')} />
-          <MobileNavLink icon={<User size={22} />} active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+          <MobileNavLink
+            icon={<MinusCircle size={22} />}
+            active={activeTab === 'rentals'}
+            onClick={() => {
+              setIsProfileDropdownOpen(false);
+              setActiveTab('rentals');
+            }}
+          />
+          <MobileNavLink
+            icon={<User size={22} />}
+            active={activeTab === 'profile'}
+            onClick={() => {
+              setIsProfileDropdownOpen(false);
+              setActiveTab('profile');
+            }}
+          />
         </div>
       </main>
     </div>
@@ -553,25 +656,40 @@ export default function AppHome() {
 }
 
 function SidebarLink({ icon, label, isActive, onClick, badge }: { icon: ReactNode, label: string, isActive: boolean, onClick: () => void, badge?: number }) {
+  const badgeLabel = badge && badge > 99 ? "99+" : badge;
+
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group ${isActive ? 'bg-[#1b52d6] text-white shadow-lg shadow-brand/20' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+      className={`relative flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group ${isActive ? 'bg-[#1b52d6] text-white shadow-lg shadow-brand/20' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
     >
       <div className={`${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform`}>{icon}</div>
       <span className={`hidden lg:block font-black text-sm uppercase tracking-widest ${isActive ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
       {badge && !isActive && (
-        <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black animate-pulse">{badge}</span>
+        <>
+          <span className="ml-auto hidden lg:inline-flex min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] rounded-full items-center justify-center font-black leading-none animate-pulse">
+            {badgeLabel}
+          </span>
+          <span className="absolute right-2 top-2 inline-flex lg:hidden min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] rounded-full items-center justify-center font-black leading-none animate-pulse">
+            {badgeLabel}
+          </span>
+        </>
       )}
     </button>
   );
 }
 
 function MobileNavLink({ icon, active, onClick, badge }: { icon: ReactNode, active: boolean, onClick: () => void, badge?: number }) {
+  const badgeLabel = badge && badge > 99 ? "99+" : badge;
+
   return (
     <button onClick={onClick} className={`p-3 rounded-xl relative transition-all ${active ? 'text-[#1b52d6] bg-blue-50 scale-110' : 'text-slate-400 opacity-60'}`}>
       {icon}
-      {badge && <span className="absolute top-2 right-2 w-4 h-4 bg-red-500 text-white text-[8px] rounded-full flex items-center justify-center font-black">{badge}</span>}
+      {badge && (
+        <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center font-black leading-none">
+          {badgeLabel}
+        </span>
+      )}
     </button>
   );
 }

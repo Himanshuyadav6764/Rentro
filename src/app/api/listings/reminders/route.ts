@@ -8,11 +8,19 @@ export async function GET() {
   try {
     await connectToDatabase();
 
-    const items = await Item.find({ status: { $in: ['pending', 'active'] } }).lean();
+    const items = await Item.find({ status: { $in: ['pending', 'active', 'return_requested'] } }).lean();
     const now = Date.now();
 
     const reminders = items
       .map((item) => {
+        if (item.status === 'return_requested') {
+          return {
+            listingId: item._id.toString(),
+            level: 'warning',
+            message: `${item.title} has a return approval request pending.`,
+          };
+        }
+
         const endDate = new Date(item.end_date).getTime();
         const diffDays = Math.ceil((endDate - now) / DAY_MS);
 

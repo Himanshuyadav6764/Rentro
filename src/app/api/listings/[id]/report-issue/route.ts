@@ -12,6 +12,10 @@ const bodySchema = z.object({
   description: z.string().trim().min(3).max(300),
 });
 
+function isObjectId(value: string) {
+  return /^[a-fA-F0-9]{24}$/.test(value);
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
@@ -35,13 +39,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     item.issues_count = (item.issues_count || 0) + 1;
     item.behavior_notes = [...(item.behavior_notes || []), `Issue reported: ${payload.issueType} (${payload.severity})`].slice(-20);
 
-    if (payload.issueType === 'fraud') {
+    if (item.status === 'return_requested' || item.status === 'pending_return') {
+      item.status = 'dispute';
+    } else if (payload.issueType === 'fraud') {
       item.status = 'cancelled';
     }
 
     await item.save();
 
-    if (item.owner_id) {
+    if (item.owner_id && isObjectId(item.owner_id)) {
       const owner = await User.findById(item.owner_id);
       if (owner) {
         const impact = scoreImpactOnIssue(payload.severity);

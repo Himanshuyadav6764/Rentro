@@ -8,7 +8,15 @@ export interface IItem {
   image_public_ids: string[];
   owner_id?: string;
   renter_name?: string;
-  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  status:
+    | 'pending'
+    | 'active'
+    | 'completed'
+    | 'cancelled'
+    | 'pending_return'
+    | 'overdue'
+    | 'return_requested'
+    | 'dispute';
   availability_days: string[];
   start_date: Date;
   end_date: Date;
@@ -38,7 +46,16 @@ const ItemSchema = new Schema<IItem>({
   renter_name: { type: String, default: 'Awaiting requests' },
   status: {
     type: String,
-    enum: ['pending', 'active', 'completed', 'cancelled'],
+    enum: [
+      'pending',
+      'active',
+      'completed',
+      'cancelled',
+      'pending_return',
+      'overdue',
+      'return_requested',
+      'dispute',
+    ],
     default: 'pending',
   },
   availability_days: [String],

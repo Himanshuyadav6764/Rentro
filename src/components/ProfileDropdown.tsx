@@ -5,16 +5,9 @@ import {
   User, 
   ChevronRight,
   LogOut,
-  List,
-  ClipboardList,
-  ShoppingCart,
-  CreditCard,
-  ShieldCheck,
-  Star,
   HelpCircle,
   Settings,
-  Globe,
-  X
+   Globe
 } from 'lucide-react';
 
 interface ProfileDropdownProps {
@@ -23,30 +16,40 @@ interface ProfileDropdownProps {
   onLogout: () => void;
   onViewProfile: () => void;
   userName: string;
+   triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfile, userName }: ProfileDropdownProps) {
+export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfile, userName, triggerRef }: ProfileDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        onClose();
+         const target = event.target as Node;
+         const triggerEl = triggerRef?.current;
+
+         if (dropdownRef.current?.contains(target)) {
+            return;
+         }
+
+         if (triggerEl?.contains(target)) {
+            return;
       }
+
+         onClose();
     }
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
+   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <div 
       ref={dropdownRef}
-      className="absolute top-14 right-6 w-full max-w-[320px] bg-white z-[2000] shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 rounded-xl overflow-hidden flex flex-col animate-in slide-in-from-top-4 duration-300"
+         className="absolute top-10 right-6 w-full max-w-[320px] bg-white z-[2000] shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 rounded-xl overflow-hidden flex flex-col animate-in slide-in-from-top-4 duration-300"
     >
       
       {/* Header Section */}
@@ -77,23 +80,6 @@ export default function ProfileDropdown({ isOpen, onClose, onLogout, onViewProfi
 
       {/* Menu List */}
       <div className="flex flex-col max-h-[400px] overflow-y-auto hide-scrollbar">
-         <DropdownItem icon={<List size={18} />} label="My ADS" />
-         <DropdownItem icon={<ClipboardList size={18} />} label="Buy Business Packages" />
-         <DropdownItem icon={<ShoppingCart size={18} />} label="View Cart" />
-         <DropdownItem icon={<CreditCard size={18} />} label="Bought Packages & Billing" />
-         <DropdownItem icon={<Star size={18} />} label="Become an Elite Buyer" className="bg-blue-50/30" />
-         
-         <div className="w-full h-[1px] bg-slate-100"></div>
-         
-         <DropdownItem 
-            icon={<ShieldCheck size={18} />} 
-            label="Become an Elite Seller" 
-            className="bg-blue-50/30"
-            badge="New"
-         />
-
-         <div className="w-full h-[1px] bg-slate-100"></div>
-
          <DropdownItem icon={<HelpCircle size={18} />} label="Help" />
          <DropdownItem icon={<Settings size={18} />} label="Settings" />
          

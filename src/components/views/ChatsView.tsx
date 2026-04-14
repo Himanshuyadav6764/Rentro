@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { io, type Socket } from 'socket.io-client';
+import { useRouter } from 'next/navigation';
 import { 
   ChevronLeft, 
   MessageCircle, 
   Settings, 
-  Menu, 
   CheckCircle2, 
   Phone, 
   Video, 
@@ -18,22 +19,43 @@ import {
   CheckCircle
 } from 'lucide-react';
 import Image from 'next/image';
+import { fetchListingById } from '@/lib/listingData';
 
 interface Message {
   id: string;
   text: string;
   sender: 'me' | 'other';
   time: string;
+  createdAt?: string;
   status?: 'sent' | 'delivered' | 'read';
+}
+
+interface ApiMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  text: string;
+  createdAt: string;
+  seen: boolean;
+}
+
+interface MessageSeenEvent {
+  senderId: string;
+  receiverId: string;
+  messageIds: string[];
+  seenAt: string;
 }
 
 interface Chat {
   id: string;
+  userId: string;
   name: string;
   product: string;
   lastMessage: string;
   time: string;
+  lastMessageAt?: string;
   trustScore: number;
+  online?: boolean;
   isPending?: boolean;
   avatar?: string;
   messages: Message[];
@@ -41,58 +63,434 @@ interface Chat {
 
 type ChatsViewProps = {
   openOwnerName?: string | null;
+  openUserId?: string | null;
+  openUserName?: string | null;
+  openItemId?: string | null;
+  openItemName?: string | null;
+  backTo?: string | null;
+  originTab?: string | null;
+  standalone?: boolean;
 };
 
-const INITIAL_CHATS: Chat[] = [
-  {
-    id: '1',
-    name: 'Ankit Sharma',
-    product: 'Laptops for coding',
-    lastMessage: 'Agreed. Time and place set. See you at...',
-    time: '3:58 PM',
-    trustScore: 78,
-    avatar: '/ankit-avatar.png',
-    messages: [
-      { id: 'm1', text: 'Laptop available hai, 7 days ke liye ₹500/day 💻 💵', sender: 'other', time: '3:50 PM' },
-      { id: 'm2', text: 'Thoda kam ho sakta hai?', sender: 'me', time: '3:52 PM', status: 'read' },
-      { id: 'm3', text: '₹450 final.', sender: 'other', time: '3:53 PM' },
-      { id: 'm4', text: 'Theek hai, done!', sender: 'me', time: '3:54 PM', status: 'read' },
-      { id: 'm5', text: 'Agreed. Time and place set. See you at the main gate tomorrow.', sender: 'other', time: '3:58 PM' }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Priya Verma',
-    product: 'Engineering Books',
-    lastMessage: 'Got it. I\'ll be there on time. 🤝',
-    time: '3:36 PM',
-    trustScore: 82,
-    isPending: true,
-    messages: [
-      { id: 'pm1', text: 'Hi, I need the books for next week.', sender: 'me', time: '3:30 PM', status: 'read' },
-      { id: 'pm2', text: 'Sure, they are available. When can you collect?', sender: 'other', time: '3:34 PM' },
-      { id: 'pm3', text: 'Got it. I\'ll be there on time. 🤝', sender: 'other', time: '3:36 PM' }
-    ]
-  },
-  {
-    id: '3',
-    name: 'Neha Gupta',
-    product: 'Data Science Notes',
-    lastMessage: '2:15 PM',
-    time: '2:15 PM',
-    trustScore: 92,
-    messages: []
-  }
-];
+type ChatItemContext = {
+  name: string;
+  pricePerDay: number | null;
+};
 
-export default function ChatsView({ openOwnerName }: ChatsViewProps) {
+type QuickReplyKey = 'available' | 'reduce_price' | 'where_meet';
+
+const QUICK_REPLY_MESSAGES: Record<QuickReplyKey, string> = {
+  available: 'Yes, this item is available.',
+  reduce_price: 'Can you reduce the price?',
+  where_meet: 'Where can we meet?',
+};
+
+const INITIAL_CHATS: Chat[] = [];
+
+function formatMessageTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function sortChatsByActivity(chats: Chat[]) {
+  return [...chats].sort((a, b) => {
+    const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+    const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+
+    if (aTime === bTime) {
+      return 0;
+    }
+
+    return bTime - aTime;
+  });
+}
+
+function toSafeInternalPath(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('/')) {
+    return null;
+  }
+  if (trimmed.startsWith('//')) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function labelFromOrigin(originTab: string | null | undefined) {
+  if (originTab === 'my_listings') {
+    return 'My Listings';
+  }
+  if (originTab === 'requests') {
+    return 'Requests';
+  }
+  if (originTab === 'history') {
+    return 'History';
+  }
+  return 'My Rentals';
+}
+
+export default function ChatsView({ openOwnerName, openUserId, openUserName, openItemId, openItemName, backTo, originTab, standalone = false }: ChatsViewProps) {
+  const router = useRouter();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>(INITIAL_CHATS);
   const [newMessage, setNewMessage] = useState("");
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [activeQuickReply, setActiveQuickReply] = useState<QuickReplyKey | null>(null);
+  const [quickReplyCoolingDown, setQuickReplyCoolingDown] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [resolvedItemContext, setResolvedItemContext] = useState<ChatItemContext | null>(null);
   const lastOpenedOwnerRef = useRef<string | null>(null);
+  const lastOpenedUserIdRef = useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const quickReplyHighlightTimerRef = useRef<number | null>(null);
+  const quickReplyCooldownTimerRef = useRef<number | null>(null);
 
   const selectedChat = chats.find(c => c.id === selectedChatId);
+  const safeBackTo = toSafeInternalPath(backTo) || '/my-rentals';
+  const activeContextItem = (resolvedItemContext?.name || openItemName?.trim() || selectedChat?.product || 'Rental Chat');
+  const activeContextPrice = resolvedItemContext?.pricePerDay;
+  const canViewItem = Boolean(openItemId?.trim()) || activeContextItem.toLowerCase() !== 'rental chat';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateContextFromItemId() {
+      const incomingItemId = openItemId?.trim();
+      if (!incomingItemId) {
+        setResolvedItemContext(null);
+        return;
+      }
+
+      try {
+        const listing = await fetchListingById(incomingItemId);
+        if (!listing || cancelled) {
+          return;
+        }
+
+        const nextContext: ChatItemContext = {
+          name: listing.title,
+          pricePerDay: typeof listing.rent_price === 'number' ? listing.rent_price : null,
+        };
+
+        setResolvedItemContext(nextContext);
+
+        if (openUserId?.trim()) {
+          setChats((prev) =>
+            prev.map((chat) =>
+              chat.userId === openUserId.trim()
+                ? { ...chat, product: nextContext.name }
+                : chat,
+            ),
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setResolvedItemContext(null);
+        }
+      }
+    }
+
+    void hydrateContextFromItemId();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [openItemId, openUserId]);
+
+  const markMessagesAsSeen = useCallback(async (peerUserId: string) => {
+    try {
+      await fetch('/api/messages/seen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: peerUserId }),
+      });
+    } catch {
+      // Seen status is best-effort and should not block chat usage.
+    }
+  }, []);
+
+  const loadChatMessages = useCallback(async (peerUserId: string) => {
+    if (!currentUserId) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/messages?userId=${encodeURIComponent(peerUserId)}`, {
+        cache: 'no-store',
+      });
+
+      const payload = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        messages?: ApiMessage[];
+      };
+
+      if (!response.ok || !payload.success) {
+        setChatError(payload.error || 'Unable to sync messages.');
+        return;
+      }
+
+      const incomingMessages = (payload.messages || []).map((msg) => ({
+        id: msg.id,
+        text: msg.text,
+        sender: msg.senderId === currentUserId ? 'me' : 'other',
+        time: formatMessageTime(msg.createdAt),
+        createdAt: msg.createdAt,
+        status: msg.senderId === currentUserId ? (msg.seen ? 'read' : 'delivered') : undefined,
+      } as Message));
+
+      setChats((prev) => {
+        const next = prev.map((chat) => {
+          if (chat.userId !== peerUserId) {
+            return chat;
+          }
+
+          const mergedMessages = [...incomingMessages];
+
+          const latest = mergedMessages[mergedMessages.length - 1];
+
+          return {
+            ...chat,
+            messages: mergedMessages,
+            lastMessage: latest?.text || chat.lastMessage,
+            time: latest?.time || chat.time,
+            lastMessageAt: latest?.createdAt || chat.lastMessageAt,
+          };
+        });
+
+        return sortChatsByActivity(next);
+      });
+
+      await markMessagesAsSeen(peerUserId);
+    } catch {
+      setChatError('Unable to sync messages.');
+    }
+  }, [currentUserId, markMessagesAsSeen]);
+
+  const hydrateChatList = useCallback(async () => {
+    try {
+      const userRes = await fetch('/api/user/me', { cache: 'no-store' });
+      const userPayload = (await userRes.json()) as {
+        success?: boolean;
+        user?: { id?: string };
+      };
+
+      if (!userRes.ok || !userPayload.success || !userPayload.user?.id) {
+        return;
+      }
+
+      setCurrentUserId(userPayload.user.id);
+
+      const chatsRes = await fetch('/api/messages/chats', { cache: 'no-store' });
+      const chatsPayload = (await chatsRes.json()) as {
+        success?: boolean;
+        chats?: Array<{
+          userId: string;
+          name: string;
+          avatar?: string;
+          trustScore: number;
+          lastMessage: string;
+          lastMessageAt: string;
+          online: boolean;
+        }>;
+      };
+
+      if (!chatsRes.ok || !chatsPayload.success || !chatsPayload.chats) {
+        setChatError('Unable to load chats.');
+        return;
+      }
+
+      setChats((prev) => {
+        const pendingByName = new Map(prev.map((chat) => [chat.name.toLowerCase(), Boolean(chat.isPending)]));
+        const previousByUserId = new Map(prev.map((chat) => [chat.userId, chat]));
+        const carryOverChats = prev.filter((chat) => chat.userId.startsWith('local-') || chat.messages.length > 0);
+
+        const apiChats = chatsPayload.chats!.map((chat) => ({
+          id: chat.userId,
+          userId: chat.userId,
+          name: chat.name,
+          product: previousByUserId.get(chat.userId)?.product || 'Rental Chat',
+          lastMessage: chat.lastMessage,
+          time: formatMessageTime(chat.lastMessageAt),
+          lastMessageAt: chat.lastMessageAt,
+          trustScore: chat.trustScore,
+          online: chat.online,
+          avatar: chat.avatar,
+          isPending: pendingByName.get(chat.name.toLowerCase()) || false,
+          messages: [],
+        } as Chat));
+
+        const merged = [...apiChats];
+        for (const existing of carryOverChats) {
+          if (!merged.some((chat) => chat.userId === existing.userId)) {
+            merged.push(existing);
+          }
+        }
+
+        return sortChatsByActivity(merged);
+      });
+      setChatError(null);
+    } catch {
+      setChatError('Unable to load chats.');
+    }
+  }, []);
+
+  const upsertRealtimeMessage = useCallback(
+    (message: ApiMessage) => {
+      if (!currentUserId) {
+        return;
+      }
+
+      const peerUserId = message.senderId === currentUserId ? message.receiverId : message.senderId;
+      const mappedMessage: Message = {
+        id: message.id,
+        text: message.text,
+        sender: message.senderId === currentUserId ? 'me' : 'other',
+        time: formatMessageTime(message.createdAt),
+        createdAt: message.createdAt,
+        status: message.senderId === currentUserId ? (message.seen ? 'read' : 'delivered') : undefined,
+      };
+
+      setChats((prev) => {
+        let found = false;
+
+        const next = prev.map((chat) => {
+          if (chat.userId !== peerUserId) {
+            return chat;
+          }
+
+          found = true;
+
+          const alreadyExists = chat.messages.some((existing) => existing.id === mappedMessage.id);
+          const nextMessages = alreadyExists
+            ? chat.messages.map((existing) => (existing.id === mappedMessage.id ? mappedMessage : existing))
+            : [...chat.messages, mappedMessage];
+
+          return {
+            ...chat,
+            messages: nextMessages,
+            lastMessage: mappedMessage.text,
+            time: mappedMessage.time,
+            lastMessageAt: mappedMessage.createdAt,
+          };
+        });
+
+        if (!found) {
+          next.unshift({
+            id: peerUserId,
+            userId: peerUserId,
+            name: 'New Chat',
+            product: 'Rental Chat',
+            lastMessage: mappedMessage.text,
+            time: mappedMessage.time,
+            lastMessageAt: mappedMessage.createdAt,
+            trustScore: 50,
+            online: true,
+            messages: [mappedMessage],
+          });
+        }
+
+        return sortChatsByActivity(next);
+      });
+
+      if (message.senderId !== currentUserId && selectedChat?.userId === peerUserId) {
+        void markMessagesAsSeen(peerUserId);
+      }
+    },
+    [currentUserId, markMessagesAsSeen, selectedChat?.userId],
+  );
+
+  const handleRealtimeSeen = useCallback((payload: MessageSeenEvent) => {
+    if (payload.messageIds.length === 0) {
+      return;
+    }
+
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.userId !== payload.senderId && chat.userId !== payload.receiverId) {
+          return chat;
+        }
+
+        return {
+          ...chat,
+          messages: chat.messages.map((message) =>
+            payload.messageIds.includes(message.id) && message.sender === 'me'
+              ? { ...message, status: 'read' }
+              : message,
+          ),
+        };
+      }),
+    );
+  }, []);
+
+  useEffect(() => {
+    void hydrateChatList();
+  }, [hydrateChatList]);
+
+  useEffect(() => {
+    const syncTimer = window.setInterval(() => {
+      void hydrateChatList();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(syncTimer);
+    };
+  }, [hydrateChatList]);
+
+  useEffect(() => {
+    const incomingUserId = openUserId?.trim();
+    const incomingItem = openItemName?.trim();
+    if (!incomingUserId) {
+      return;
+    }
+    if (lastOpenedUserIdRef.current === incomingUserId) {
+      return;
+    }
+
+    setChats((prev) => {
+      const existing = prev.find((chat) => chat.userId === incomingUserId);
+      if (existing) {
+        if (incomingItem && existing.product !== incomingItem) {
+          return prev.map((chat) => (chat.userId === incomingUserId ? { ...chat, product: incomingItem } : chat));
+        }
+        return prev;
+      }
+
+      const placeholderName = openUserName?.trim() || 'Rental Chat';
+      const nextChat: Chat = {
+        id: incomingUserId,
+        userId: incomingUserId,
+        name: placeholderName,
+        product: incomingItem || 'Rental Chat',
+        lastMessage: 'Start your conversation',
+        time: formatMessageTime(new Date().toISOString()),
+        lastMessageAt: new Date().toISOString(),
+        trustScore: 50,
+        online: false,
+        messages: [],
+      };
+
+      return sortChatsByActivity([nextChat, ...prev]);
+    });
+
+    setSelectedChatId(incomingUserId);
+    setActiveTab('all');
+    lastOpenedUserIdRef.current = incomingUserId;
+  }, [openItemName, openUserId, openUserName]);
 
   useEffect(() => {
     const ownerName = openOwnerName?.trim();
@@ -100,55 +498,223 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
     if (lastOpenedOwnerRef.current === ownerName) return;
 
     const ownerNameLower = ownerName.toLowerCase();
-    const existing = chats.find((chat) => chat.name.toLowerCase() === ownerNameLower);
+    let nextSelectedId: string | null = null;
 
-    if (existing) {
-      setSelectedChatId(existing.id);
-      setActiveTab('all');
-      lastOpenedOwnerRef.current = ownerName;
+    setChats((prev) => {
+      const existing = prev.find((chat) => chat.name.toLowerCase() === ownerNameLower);
+      if (existing) {
+        nextSelectedId = existing.id;
+        return prev;
+      }
+
+      const generatedId = `local-${Date.now()}`;
+      const newChat: Chat = {
+        id: generatedId,
+        userId: generatedId,
+        name: ownerName,
+        product: 'Rental Chat',
+        lastMessage: 'Start your conversation',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        lastMessageAt: new Date().toISOString(),
+        trustScore: 75,
+        online: true,
+        messages: [],
+      };
+
+      nextSelectedId = newChat.id;
+      return [newChat, ...prev];
+    });
+
+    if (nextSelectedId) {
+      setSelectedChatId(nextSelectedId);
+    }
+    setActiveTab('all');
+    lastOpenedOwnerRef.current = ownerName;
+  }, [openOwnerName]);
+
+  useEffect(() => {
+    if (!currentUserId) {
       return;
     }
 
-    const newChat: Chat = {
-      id: `owner-${Date.now()}`,
-      name: ownerName,
-      product: 'Rental Chat',
-      lastMessage: 'Start your conversation',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      trustScore: 75,
-      messages: [],
+    const socket = io({
+      path: '/socket.io',
+      query: { userId: currentUserId },
+      transports: ['websocket'],
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      socket.emit('presence:ping', currentUserId);
+    });
+
+    socket.on('message:new', (payload: ApiMessage) => {
+      upsertRealtimeMessage(payload);
+    });
+
+    socket.on('message:seen', (payload: MessageSeenEvent) => {
+      handleRealtimeSeen(payload);
+    });
+
+    socket.on('presence:online-users', (onlineUserIds: string[]) => {
+      const onlineSet = new Set(onlineUserIds);
+
+      setChats((prev) =>
+        prev.map((chat) => ({
+          ...chat,
+          online: onlineSet.has(chat.userId),
+        })),
+      );
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
     };
+  }, [currentUserId, handleRealtimeSeen, upsertRealtimeMessage]);
 
-    setChats((prev) => [newChat, ...prev]);
-    setSelectedChatId(newChat.id);
-    setActiveTab('all');
-    lastOpenedOwnerRef.current = ownerName;
-  }, [openOwnerName, chats]);
+  useEffect(() => {
+    if (!selectedChat?.userId) {
+      return;
+    }
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedChatId) return;
+    setChatError(null);
+    void loadChatMessages(selectedChat.userId);
+  }, [loadChatMessages, selectedChat?.userId]);
 
-    const msg: Message = {
-      id: Date.now().toString(),
-      text: newMessage,
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [selectedChat?.messages.length]);
+
+  useEffect(() => {
+    return () => {
+      if (quickReplyHighlightTimerRef.current) {
+        window.clearTimeout(quickReplyHighlightTimerRef.current);
+      }
+      if (quickReplyCooldownTimerRef.current) {
+        window.clearTimeout(quickReplyCooldownTimerRef.current);
+      }
+    };
+  }, []);
+
+  const sendMessage = async (rawText?: string) => {
+    const text = (rawText ?? newMessage).trim();
+    if (!text || !selectedChat || isSending) return;
+
+    const chatId = selectedChat.id;
+    const receiverId = selectedChat.userId;
+    const tempId = `temp-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      text,
       sender: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: formatMessageTime(nowIso),
+      createdAt: nowIso,
       status: 'sent'
     };
 
-    setChats(prev => prev.map(chat => {
-      if (chat.id === selectedChatId) {
-        return {
-          ...chat,
-          messages: [...chat.messages, msg],
-          lastMessage: newMessage,
-          time: msg.time
-        };
-      }
-      return chat;
-    }));
+    setChats((prev) =>
+      sortChatsByActivity(
+        prev.map((chat) => {
+          if (chat.id === chatId) {
+            return {
+              ...chat,
+              messages: [...chat.messages, optimisticMessage],
+              lastMessage: text,
+              time: optimisticMessage.time,
+              lastMessageAt: nowIso,
+            };
+          }
+          return chat;
+        }),
+      ),
+    );
 
     setNewMessage("");
+    setIsSending(true);
+    setChatError(null);
+
+    try {
+      if (!currentUserId || receiverId.startsWith('local-')) {
+        setChats((prev) =>
+          prev.map((chat) => {
+            if (chat.id !== chatId) {
+              return chat;
+            }
+
+            return {
+              ...chat,
+              messages: chat.messages.map((message) =>
+                message.id === tempId ? { ...message, status: 'read' } : message,
+              ),
+            };
+          }),
+        );
+        return;
+      }
+
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverId, text }),
+      });
+
+      const payload = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        message?: ApiMessage;
+      };
+
+      if (!response.ok || !payload.success || !payload.message) {
+        throw new Error(payload.error || 'Unable to send message');
+      }
+
+      const savedMessage: Message = {
+        id: payload.message.id,
+        text: payload.message.text,
+        sender: 'me',
+        time: formatMessageTime(payload.message.createdAt),
+        createdAt: payload.message.createdAt,
+        status: payload.message.seen ? 'read' : 'delivered',
+      };
+
+      setChats((prev) =>
+        sortChatsByActivity(
+          prev.map((chat) => {
+            if (chat.id !== chatId) {
+              return chat;
+            }
+
+            return {
+              ...chat,
+              messages: chat.messages.map((message) => (message.id === tempId ? savedMessage : message)),
+              lastMessage: savedMessage.text,
+              time: savedMessage.time,
+              lastMessageAt: savedMessage.createdAt,
+            };
+          }),
+        ),
+      );
+    } catch (error) {
+      setChats((prev) => prev.map((chat) => {
+        if (chat.id !== chatId) {
+          return chat;
+        }
+
+        return {
+          ...chat,
+          messages: chat.messages.filter((message) => message.id !== tempId),
+        };
+      }));
+
+      setNewMessage(text);
+      setChatError(error instanceof Error ? error.message : 'Unable to send message');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleAcceptRequest = (id: string, e: React.MouseEvent) => {
@@ -170,6 +736,66 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
   const chatList = activeTab === 'all' 
     ? chats 
     : chats.filter(c => c.isPending);
+
+  const closeActionMenu = useCallback(() => {
+    setShowActionMenu(false);
+  }, []);
+
+  const handleBackClick = useCallback(() => {
+    if (!standalone) {
+      setSelectedChatId(null);
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(safeBackTo);
+  }, [router, safeBackTo, standalone]);
+
+  const handleGoToRentals = useCallback(() => {
+    closeActionMenu();
+    router.push('/my-rentals');
+  }, [closeActionMenu, router]);
+
+  const handleGoToListings = useCallback(() => {
+    closeActionMenu();
+    router.push('/my-listings');
+  }, [closeActionMenu, router]);
+
+  const handleViewItem = useCallback(() => {
+    closeActionMenu();
+    if (!canViewItem) {
+      return;
+    }
+
+    const targetTab = originTab === 'my_listings' ? 'my_listings' : 'my_rentals';
+    router.push(`/?tab=rentals&rentalsTab=${targetTab}&search=${encodeURIComponent(activeContextItem)}`);
+  }, [activeContextItem, canViewItem, closeActionMenu, originTab, router]);
+
+  useEffect(() => {
+    if (!showActionMenu) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setShowActionMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [showActionMenu]);
+
+  useEffect(() => {
+    setShowActionMenu(false);
+  }, [selectedChatId]);
 
   return (
     <div className="flex h-full w-full bg-white max-w-6xl mx-auto overflow-hidden relative min-w-0">
@@ -211,6 +837,12 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
           <div className="px-5 py-3 md:py-4 flex justify-between items-center text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-slate-400">
             <span>Recent Activity</span>
           </div>
+
+          {chatError && !selectedChatId && (
+            <div className="mx-4 mb-3 rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-700">
+              {chatError}
+            </div>
+          )}
           
           {chatList.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-sm italic">
@@ -235,7 +867,7 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
                           {chat.name.charAt(0)}
                         </div>
                       )}
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 md:w-4 md:h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 md:w-4 md:h-4 border-2 border-white rounded-full ${chat.online ? 'bg-green-500' : 'bg-slate-300'}`}></div>
                     </div>
                     <div className="max-w-[140px] md:max-w-[150px]">
                       <h3 className={`text-sm md:text-[15px] ${selectedChatId === chat.id ? 'font-black text-brand' : 'font-bold text-slate-800'} truncate`}>{chat.name}</h3>
@@ -277,8 +909,12 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
            <div className="flex flex-col h-full bg-white overflow-hidden animate-in slide-in-from-right-2 duration-300 min-h-0">
              {/* Dynamic Chat Header */}
              <header className="bg-white px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-slate-100 sticky top-0 z-10 shadow-sm">
-               <div className="flex items-center gap-3 md:gap-4">
-                 <button onClick={() => setSelectedChatId(null)} className="md:hidden p-1.5 -ml-1.5 text-slate-400 hover:text-brand transition-colors">
+               <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                 <button
+                   onClick={handleBackClick}
+                   className={`${standalone ? 'inline-flex' : 'inline-flex md:hidden'} p-1.5 -ml-1.5 text-slate-400 hover:text-brand transition-colors`}
+                   aria-label="Back"
+                 >
                    <ChevronLeft size={22} strokeWidth={3} />
                  </button>
                  <div className="relative w-10 min-w-[40px] h-10 md:w-12 md:h-12">
@@ -291,14 +927,22 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
                        {selectedChat?.name.charAt(0)}
                      </div>
                    )}
-                   <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
+                   <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${selectedChat?.online ? 'bg-green-500' : 'bg-slate-300'}`}></div>
                  </div>
                  <div className="min-w-0">
+                   {standalone && (
+                     <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate mb-1">
+                       Home &gt; {labelFromOrigin(originTab)} &gt; Chat
+                     </p>
+                   )}
                    <h1 className="text-sm md:text-lg font-black text-slate-800 leading-none mb-1 truncate">{selectedChat?.name}</h1>
+                   <p className="text-[10px] md:text-[11px] text-slate-500 font-semibold truncate">
+                     {activeContextPrice ? `${activeContextItem} • ₹ ${activeContextPrice}/day` : activeContextItem}
+                   </p>
                    <div className="flex items-center gap-1.5">
-                     <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{selectedChat?.product}</span>
-                     <span className="w-1 h-1 bg-green-500 rounded-full shrink-0"></span>
-                     <span className="text-[9px] md:text-[10px] font-bold text-green-500 uppercase tracking-tighter">Online</span>
+                     <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">Chat about this item</span>
+                     <span className={`w-1 h-1 rounded-full shrink-0 ${selectedChat?.online ? 'bg-green-500' : 'bg-slate-300'}`}></span>
+                     <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-tighter ${selectedChat?.online ? 'text-green-500' : 'text-slate-400'}`}>{selectedChat?.online ? 'Online' : 'Offline'}</span>
                    </div>
                  </div>
                </div>
@@ -309,9 +953,38 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
                  <button className="p-2 md:p-3 rounded-xl bg-brand/5 text-brand hover:bg-brand hover:text-white transition-all transform active:scale-95 shadow-sm border border-brand/10">
                    <Video size={18} strokeWidth={3} />
                  </button>
-                 <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                   <MoreVertical size={20} />
-                 </button>
+                 <div className="relative" ref={menuRef}>
+                   <button
+                     onClick={() => setShowActionMenu((prev) => !prev)}
+                     className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                     aria-label="Open chat actions"
+                   >
+                     <MoreVertical size={20} />
+                   </button>
+                   {showActionMenu && (
+                     <div className="absolute right-0 top-10 w-44 rounded-xl border border-slate-200 bg-white shadow-lg py-1 z-20">
+                       <button
+                         onClick={handleViewItem}
+                         disabled={!canViewItem}
+                         className={`w-full px-3 py-2 text-left text-sm ${canViewItem ? 'text-slate-700 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
+                       >
+                         View Item
+                       </button>
+                       <button
+                         onClick={handleGoToRentals}
+                         className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                       >
+                         Go to My Rentals
+                       </button>
+                       <button
+                         onClick={handleGoToListings}
+                         className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                       >
+                         Go to My Listings
+                       </button>
+                     </div>
+                   )}
+                 </div>
                </div>
              </header>
 
@@ -319,20 +992,79 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col hide-scrollbar bg-slate-50/10">
                
                {/* Suggestion Bar */}
-               <div className="flex gap-2 px-4 md:px-6 py-3 md:py-4 overflow-x-auto hide-scrollbar bg-white border-b border-slate-50 select-none">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2.5 bg-white rounded-full text-[10px] md:text-[11px] font-black shadow-sm border border-slate-200 hover:border-brand/40 transition-all whitespace-nowrap active:scale-95">
-                    <CheckCircle2 size={12} className="text-brand" />
-                    YES, AVAILABLE
-                  </button>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2.5 bg-white rounded-full text-[10px] md:text-[11px] font-black shadow-sm border border-slate-200 hover:border-brand/40 transition-all whitespace-nowrap active:scale-95">
-                    <Tag size={12} className="text-amber-500" />
-                    REDUCE PRICE?
-                  </button>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2.5 bg-white rounded-full text-[10px] md:text-[11px] font-black shadow-sm border border-slate-200 hover:border-brand/40 transition-all whitespace-nowrap active:scale-95">
-                    <MapPin size={12} className="text-teal-500" />
-                    WHERE TO MEET?
-                  </button>
-               </div>
+               {selectedChat?.messages.length === 0 && (
+                 <div className="flex gap-2 px-4 md:px-6 py-3 md:py-4 overflow-x-auto hide-scrollbar bg-white border-b border-slate-50 select-none">
+                    <button
+                      onClick={() => {
+                        if (quickReplyCoolingDown || isSending) return;
+                        setActiveQuickReply('available');
+                        setQuickReplyCoolingDown(true);
+                        if (quickReplyHighlightTimerRef.current) {
+                          window.clearTimeout(quickReplyHighlightTimerRef.current);
+                        }
+                        if (quickReplyCooldownTimerRef.current) {
+                          window.clearTimeout(quickReplyCooldownTimerRef.current);
+                        }
+                        quickReplyHighlightTimerRef.current = window.setTimeout(() => setActiveQuickReply(null), 650);
+                        quickReplyCooldownTimerRef.current = window.setTimeout(() => setQuickReplyCoolingDown(false), 1200);
+                        void sendMessage(QUICK_REPLY_MESSAGES.available);
+                      }}
+                      disabled={quickReplyCoolingDown || isSending}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2.5 rounded-full text-[10px] md:text-[11px] font-black shadow-sm border transition-all whitespace-nowrap active:scale-95 ${activeQuickReply === 'available' ? 'bg-brand text-white border-brand' : 'bg-white border-slate-200 hover:border-brand/40'} ${quickReplyCoolingDown || isSending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <CheckCircle2 size={12} className={activeQuickReply === 'available' ? 'text-white' : 'text-brand'} />
+                      YES, AVAILABLE
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (quickReplyCoolingDown || isSending) return;
+                        setActiveQuickReply('reduce_price');
+                        setQuickReplyCoolingDown(true);
+                        if (quickReplyHighlightTimerRef.current) {
+                          window.clearTimeout(quickReplyHighlightTimerRef.current);
+                        }
+                        if (quickReplyCooldownTimerRef.current) {
+                          window.clearTimeout(quickReplyCooldownTimerRef.current);
+                        }
+                        quickReplyHighlightTimerRef.current = window.setTimeout(() => setActiveQuickReply(null), 650);
+                        quickReplyCooldownTimerRef.current = window.setTimeout(() => setQuickReplyCoolingDown(false), 1200);
+                        void sendMessage(QUICK_REPLY_MESSAGES.reduce_price);
+                      }}
+                      disabled={quickReplyCoolingDown || isSending}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2.5 rounded-full text-[10px] md:text-[11px] font-black shadow-sm border transition-all whitespace-nowrap active:scale-95 ${activeQuickReply === 'reduce_price' ? 'bg-brand text-white border-brand' : 'bg-white border-slate-200 hover:border-brand/40'} ${quickReplyCoolingDown || isSending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <Tag size={12} className={activeQuickReply === 'reduce_price' ? 'text-white' : 'text-amber-500'} />
+                      REDUCE PRICE?
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (quickReplyCoolingDown || isSending) return;
+                        setActiveQuickReply('where_meet');
+                        setQuickReplyCoolingDown(true);
+                        if (quickReplyHighlightTimerRef.current) {
+                          window.clearTimeout(quickReplyHighlightTimerRef.current);
+                        }
+                        if (quickReplyCooldownTimerRef.current) {
+                          window.clearTimeout(quickReplyCooldownTimerRef.current);
+                        }
+                        quickReplyHighlightTimerRef.current = window.setTimeout(() => setActiveQuickReply(null), 650);
+                        quickReplyCooldownTimerRef.current = window.setTimeout(() => setQuickReplyCoolingDown(false), 1200);
+                        void sendMessage(QUICK_REPLY_MESSAGES.where_meet);
+                      }}
+                      disabled={quickReplyCoolingDown || isSending}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2.5 rounded-full text-[10px] md:text-[11px] font-black shadow-sm border transition-all whitespace-nowrap active:scale-95 ${activeQuickReply === 'where_meet' ? 'bg-brand text-white border-brand' : 'bg-white border-slate-200 hover:border-brand/40'} ${quickReplyCoolingDown || isSending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <MapPin size={12} className={activeQuickReply === 'where_meet' ? 'text-white' : 'text-teal-500'} />
+                      WHERE TO MEET?
+                    </button>
+                 </div>
+               )}
+
+               {chatError && (
+                 <div className="mx-4 md:mx-6 mt-3 rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-700">
+                   {chatError}
+                 </div>
+               )}
 
                {/* Pending Request Banner */}
                {selectedChat?.isPending && (
@@ -391,6 +1123,7 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
                       </div>
                     ))
                   )}
+                  <div ref={messagesEndRef} />
                </div>
              </div>
 
@@ -405,14 +1138,19 @@ export default function ChatsView({ openOwnerName }: ChatsViewProps) {
                       type="text" 
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void sendMessage();
+                        }
+                      }}
                       placeholder="Type a message..." 
                       className="flex-1 bg-transparent border-none outline-none text-xs md:text-[15px] text-slate-800 py-3 md:py-4 px-1 font-bold placeholder:text-slate-400"
                     />
                   </div>
                   <button 
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
+                    onClick={() => void sendMessage()}
+                    disabled={!newMessage.trim() || isSending}
                     className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center bg-brand text-white rounded-xl md:rounded-2xl shadow-xl shadow-brand/30 disabled:opacity-30 disabled:shadow-none hover:scale-105 active:scale-95 transition-all transform shrink-0"
                   >
                     <Send size={20} strokeWidth={2.5} className="mr-0.5 mt-0.5" />

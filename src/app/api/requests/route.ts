@@ -41,6 +41,8 @@ const seedRequests = [
 const createSchema = z.object({
   itemName: z.string().trim().min(2).max(120),
   requesterName: z.string().trim().min(2).max(120),
+  ownerId: z.string().trim().min(1).max(120).optional(),
+  ownerName: z.string().trim().min(1).max(120).optional(),
   days: z.number().int().min(1).max(90),
   offeredAmount: z.number().min(0),
   type: z.enum(['incoming', 'outgoing']).default('incoming'),
@@ -82,6 +84,8 @@ export async function POST(request: Request) {
     const created = await RentalRequest.create({
       item_name: payload.itemName,
       requester_name: payload.requesterName,
+      owner_id: payload.ownerId,
+      owner_name: payload.ownerName,
       days: payload.days,
       offered_amount: payload.offeredAmount,
       type: payload.type,
