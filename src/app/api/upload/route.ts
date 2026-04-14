@@ -101,18 +101,18 @@ function configureCloudinary() {
 }
 
 async function uploadBufferToCloudinary(buffer: Buffer) {
-  return new Promise<{ secure_url: string }>((resolve, reject) => {
+  return new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: 'rentro_uploads',
         resource_type: 'image',
       },
       (error, result) => {
-        if (error || !result?.secure_url) {
+        if (error || !result?.secure_url || !result?.public_id) {
           reject(error || new Error('Cloudinary upload failed'));
           return;
         }
-        resolve({ secure_url: result.secure_url });
+        resolve({ secure_url: result.secure_url, public_id: result.public_id });
       }
     );
 
@@ -149,7 +149,10 @@ async function uploadBufferToFirebaseStorage(
     expires: '2500-01-01',
   });
 
-  return signedUrl;
+  return {
+    url: signedUrl,
+    publicId: objectPath,
+  };
 }
 
 async function uploadBufferLocally(
@@ -165,7 +168,10 @@ async function uploadBufferLocally(
   const fullPath = path.join(uploadsDir, fileName);
 
   await fs.writeFile(fullPath, buffer);
-  return `/uploads/${fileName}`;
+  return {
+    url: `/uploads/${fileName}`,
+    publicId: `local:${fileName}`,
+  };
 }
 
 export async function POST(request: Request) {
@@ -184,7 +190,10 @@ export async function POST(request: Request) {
       try {
         configureCloudinary();
         const res = await uploadBufferToCloudinary(buffer);
-        return NextResponse.json({ url: res.secure_url, storage: 'cloudinary' }, { status: 200 });
+        return NextResponse.json(
+          { url: res.secure_url, publicId: res.public_id, storage: 'cloudinary' },
+          { status: 200 },
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Cloudinary upload failed';
         console.warn('Cloudinary upload failed, trying fallback:', message);
@@ -198,7 +207,10 @@ export async function POST(request: Request) {
           file.name,
           file.type || 'image/jpeg',
         );
-        return NextResponse.json({ url: firebaseUrl, storage: 'firebase-storage' }, { status: 200 });
+        return NextResponse.json(
+          { url: firebaseUrl.url, publicId: firebaseUrl.publicId, storage: 'firebase-storage' },
+          { status: 200 },
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Firebase storage upload failed';
         console.warn('Firebase upload failed, trying local fallback:', message);
@@ -221,7 +233,10 @@ export async function POST(request: Request) {
       file.type || 'image/jpeg',
     );
 
-    return NextResponse.json({ url: localUrl, storage: 'local' }, { status: 200 });
+    return NextResponse.json(
+      { url: localUrl.url, publicId: localUrl.publicId, storage: 'local' },
+      { status: 200 },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Image upload failed';
     console.error('Upload error:', message);

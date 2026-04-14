@@ -49,6 +49,162 @@ interface HomeViewProps {
    searchQuery?: string;
 }
 
+function ListingImageSlider({
+   itemId,
+   title,
+   images,
+   rentPrice,
+}: {
+   itemId: string;
+   title: string;
+   images: string[];
+   rentPrice?: number;
+}) {
+   const trackRef = React.useRef<HTMLDivElement | null>(null);
+   const [activeIndex, setActiveIndex] = React.useState(0);
+   const dragState = React.useRef({
+      isDown: false,
+      startX: 0,
+      startScrollLeft: 0,
+   });
+
+   const safeImages = images.length
+      ? images.slice(0, 5)
+      : ['https://images.unsplash.com/photo-1587614382346-4ec70e388b28?auto=format&fit=crop&q=80&w=1000'];
+
+   const syncActiveIndex = React.useCallback(() => {
+      const track = trackRef.current;
+      if (!track) {
+         return;
+      }
+
+      const width = track.clientWidth || 1;
+      const nextIndex = Math.round(track.scrollLeft / width);
+      setActiveIndex(Math.max(0, Math.min(nextIndex, safeImages.length - 1)));
+   }, [safeImages.length]);
+
+   const scrollToIndex = React.useCallback(
+      (index: number) => {
+         const track = trackRef.current;
+         if (!track) {
+            return;
+         }
+
+         const bounded = Math.max(0, Math.min(index, safeImages.length - 1));
+         track.scrollTo({
+            left: bounded * track.clientWidth,
+            behavior: 'smooth',
+         });
+         setActiveIndex(bounded);
+      },
+      [safeImages.length],
+   );
+
+   return (
+      <div className="relative w-full h-44 bg-slate-50 rounded-[2rem] shrink-0 border border-slate-50 shadow-inner p-2">
+         <div
+            ref={trackRef}
+            className="hide-scrollbar flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden rounded-xl cursor-grab active:cursor-grabbing"
+            onScroll={syncActiveIndex}
+            onMouseDown={(event) => {
+               const track = trackRef.current;
+               if (!track) {
+                  return;
+               }
+
+               dragState.current.isDown = true;
+               dragState.current.startX = event.pageX;
+               dragState.current.startScrollLeft = track.scrollLeft;
+            }}
+            onMouseLeave={() => {
+               dragState.current.isDown = false;
+            }}
+            onMouseUp={() => {
+               dragState.current.isDown = false;
+               syncActiveIndex();
+            }}
+            onMouseMove={(event) => {
+               if (!dragState.current.isDown) {
+                  return;
+               }
+
+               const track = trackRef.current;
+               if (!track) {
+                  return;
+               }
+
+               event.preventDefault();
+               const walk = event.pageX - dragState.current.startX;
+               track.scrollLeft = dragState.current.startScrollLeft - walk;
+            }}
+         >
+            {safeImages.map((imageUrl, imageIndex) => (
+               <div
+                  key={`${itemId}-image-${imageIndex}`}
+                  className="relative h-full min-w-full snap-start overflow-hidden rounded-xl border border-slate-100 bg-slate-100"
+               >
+                  <Image
+                     src={imageUrl}
+                     alt={`${title} image ${imageIndex + 1}`}
+                     fill
+                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                     className="w-full h-full object-cover"
+                  />
+               </div>
+            ))}
+         </div>
+
+         {safeImages.length > 1 && (
+            <>
+               <button
+                  type="button"
+                  aria-label="Previous image"
+                  onClick={(event) => {
+                     event.stopPropagation();
+                     scrollToIndex(activeIndex - 1);
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/90 text-slate-700 shadow border border-slate-200 flex items-center justify-center"
+               >
+                  <ChevronRight size={16} className="rotate-180" />
+               </button>
+               <button
+                  type="button"
+                  aria-label="Next image"
+                  onClick={(event) => {
+                     event.stopPropagation();
+                     scrollToIndex(activeIndex + 1);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/90 text-slate-700 shadow border border-slate-200 flex items-center justify-center"
+               >
+                  <ChevronRight size={16} />
+               </button>
+
+               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/35 px-2 py-1">
+                  {safeImages.map((_, dotIndex) => (
+                     <button
+                        key={`${itemId}-dot-${dotIndex}`}
+                        type="button"
+                        aria-label={`Go to image ${dotIndex + 1}`}
+                        onClick={(event) => {
+                           event.stopPropagation();
+                           scrollToIndex(dotIndex);
+                        }}
+                        className={`h-1.5 rounded-full transition-all ${
+                           dotIndex === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60'
+                        }`}
+                     />
+                  ))}
+               </div>
+            </>
+         )}
+
+         <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-[13px] font-black px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
+            ₹ {rentPrice || 0}<span className="text-slate-400 font-bold">/day</span>
+         </div>
+      </div>
+   );
+}
+
 function formatDistance(distanceKm?: number) {
    if (distanceKm === undefined) {
       return null;
@@ -100,10 +256,13 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
 
          try {
             const params = new URLSearchParams();
-            if (searchQuery.trim()) {
-               params.set('search', searchQuery.trim());
+            const normalizedSearch = searchQuery.trim();
+            if (normalizedSearch) {
+               params.set('search', normalizedSearch);
             }
-            if (selectedCategory !== 'all') {
+
+            // Keep category chips for browse mode, but do not block explicit text search.
+            if (!normalizedSearch && selectedCategory !== 'all') {
                params.set('category', selectedCategory);
             }
             if (userLocation) {
@@ -257,19 +416,12 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
                   key={item.id} 
                            onClick={() => onSelectItem?.(item.id)}
                   className="group bg-white rounded-[2.5rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
-                   <div className="w-full h-44 bg-slate-50 rounded-[2rem] overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
-                                 <Image
-                                    src={item.image_urls?.[0] || 'https://images.unsplash.com/photo-1587614382346-4ec70e388b28?auto=format&fit=crop&q=80&w=1000'}
-                                    alt={item.title}
-                                    fill
-                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                 />
-
-                      <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-[13px] font-black px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
-                                     ₹ {item.rent_price || 0}<span className="text-slate-400 font-bold">/day</span>
-                      </div>
-                   </div>
+                            <ListingImageSlider
+                               itemId={item.id}
+                               title={item.title}
+                               images={item.image_urls || []}
+                               rentPrice={item.rent_price}
+                            />
                    <div className="flex flex-col gap-2 px-1 pb-2">
                       <h3 className="font-bold text-slate-800 text-[17px] leading-tight group-hover:text-brand transition-colors truncate">
                                     {item.title}

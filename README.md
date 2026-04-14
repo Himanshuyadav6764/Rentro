@@ -99,6 +99,12 @@ npm install
 npm run dev
 ```
 
+If you want local Socket.IO custom server mode:
+
+```bash
+npm run dev:socket
+```
+
 4. Open `http://localhost:3000`
 
 ## API Routes
@@ -170,3 +176,24 @@ A user is considered authenticated if either:
 4. Use SMTP credentials from trusted provider (SES, SendGrid, Mailgun, etc.)
 5. Run behind HTTPS so secure cookies are enforced
 6. Monitor OTP abuse and tune rate limits for your traffic
+
+## Vercel Deployment
+
+This project is configured for standard Next.js deployment on Vercel.
+
+Build/Run scripts used:
+
+- `npm run build` -> `next build`
+- `npm run start` -> `next start`
+
+Deploy steps:
+
+1. Push repository to GitHub
+2. Import project in Vercel
+3. Add all required environment variables from `.env`
+4. Deploy
+
+Note:
+
+- `server.mjs` custom Socket.IO server is local/self-host mode (`dev:socket`, `start:socket`).
+- Vercel deploy uses Next.js serverless runtime, so custom persistent Socket.IO server from `server.mjs` is not used there.
