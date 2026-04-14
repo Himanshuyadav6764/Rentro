@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import Item from '@/models/Item';
 import { connectToDatabase } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentJwtUser } from '@/lib/auth';
 
 const bodySchema = z.object({
   title: z.string().trim().min(1),
@@ -36,13 +36,22 @@ const bodySchema = z.object({
   rent_price: z.number().positive(),
   deposit: z.number().nonnegative(),
   ai_suggested_price: z.number().positive(),
+  location: z
+    .object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+      label: z.string().trim().min(1).optional(),
+      area: z.string().trim().min(1).optional(),
+      city: z.string().trim().min(1).optional(),
+    })
+    .optional(),
 });
 
 export async function POST(request: Request) {
   try {
     const json = await request.json();
     const payload = bodySchema.parse(json);
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentJwtUser();
 
     if (payload.deposit < payload.rent_price) {
       return NextResponse.json(
@@ -80,6 +89,11 @@ export async function POST(request: Request) {
       issues_count: 0,
       late_returns_count: 0,
       behavior_notes: [],
+      location_lat: payload.location?.lat,
+      location_lng: payload.location?.lng,
+      location_label: payload.location?.label,
+      location_area: payload.location?.area,
+      location_city: payload.location?.city,
     });
 
     return NextResponse.json({ success: true, itemId: item._id }, { status: 201 });

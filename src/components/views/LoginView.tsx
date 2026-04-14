@@ -147,7 +147,7 @@ function mapFirebasePhoneError(error: unknown): string {
 
   switch (firebaseCode) {
     case "auth/invalid-api-key":
-      return "Firebase API key invalid hai. .env.local me NEXT_PUBLIC_FIREBASE_API_KEY update karo.";
+      return "Firebase API key invalid hai. .env me NEXT_PUBLIC_FIREBASE_API_KEY update karo.";
     case "auth/app-not-authorized":
       return "Ye domain Firebase Auth me authorized nahi hai. Firebase console me localhost add karo.";
     case "auth/invalid-phone-number":
@@ -306,7 +306,7 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
 
   async function sendPhoneOtp(sourcePhone?: string) {
     if (!isFirebaseClientConfigured) {
-      setError("Firebase config missing hai. .env.local me NEXT_PUBLIC_FIREBASE_* real values add karo.");
+      setError("Firebase config missing hai. .env me NEXT_PUBLIC_FIREBASE_* real values add karo.");
       return;
     }
 
@@ -753,7 +753,7 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
           </p>
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 space-y-2">
             <p className="font-semibold">Firebase client setup pending</p>
-            <p>.env.local me ye values real credentials se set karo:</p>
+            <p>.env me ye values real credentials se set karo:</p>
             <p>NEXT_PUBLIC_FIREBASE_API_KEY</p>
             <p>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</p>
             <p>NEXT_PUBLIC_FIREBASE_PROJECT_ID</p>

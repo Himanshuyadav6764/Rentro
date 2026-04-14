@@ -417,35 +417,7 @@ export default function CreateListingModal({
                   )}
                 </div>
 
-                <div>
-                  <h3 className="text-[15px] font-bold text-[#1b52d6] mb-3">Personal Verification</h3>
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
-                    <div className="bg-[#eaf8f4] p-2.5 rounded-full border border-[#a7d9c8]">
-                      <ShieldCheck className="w-7 h-7 text-[#219653]" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-[14px] text-[#1c2b4c] tracking-wide">AADHAAR VERIFIED</h4>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-[#219653]">
-                        <CheckCircle2 className="w-4 h-4 fill-current text-white border-none" strokeWidth={1} style={{ background: '#219653', borderRadius: '50%' }} />
-                        <span className="text-[12px] font-medium text-slate-600">1234 5628-9576</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm pb-5 relative">
-                   <div className="absolute left-0 top-[20%] w-[4px] h-8 bg-[#1b52d6] rounded-r-md"></div>
-                   <div className="bg-[#1b52d6] text-white p-1 rounded-md ml-1">
-                     <Check className="w-4 h-4" strokeWidth={3} />
-                   </div>
-                   <div>
-                     <h4 className="font-bold text-[15px] text-[#1c2b4c] mb-0.5">Rent Verification</h4>
-                     <div className="flex items-center gap-1">
-                       <Shield className="w-3.5 h-3.5 text-[#1b52d6]" />
-                       <span className="text-[13px] text-[#1b52d6] font-medium">Request</span>
-                     </div>
-                   </div>
-                </div>
 
               </div>
 
@@ -568,16 +540,13 @@ export default function CreateListingModal({
                   <div className="flex-1">
                     <label className="block text-[14px] font-medium text-[#1c2b4c] mb-1.5">Rent Price</label>
                     <div className="relative flex items-center bg-[#f6f8fb] border border-slate-200 rounded-md focus-within:bg-white focus-within:border-[#1b52d6]">
-                      <span className="pl-3 text-[#1c2b4c] font-medium">₹</span>
-                      <input type="text" className="w-full bg-transparent px-2 py-2.5 text-sm outline-none text-[#1c2b4c] pr-12" />
-                      <span className="absolute right-3 text-sm text-slate-400">/day</span>
+                      <input type="number" placeholder="0" className="w-full bg-transparent px-3 py-2.5 text-sm outline-none text-[#1c2b4c]" />
                     </div>
                   </div>
                   <div className="flex-1">
                     <label className="block text-[14px] font-medium text-[#1c2b4c] mb-1.5">Deposit <span className="text-slate-500 font-normal">(Refundable)</span></label>
                     <div className="relative flex items-center bg-[#f6f8fb] border border-slate-200 rounded-md focus-within:bg-white focus-within:border-[#1b52d6]">
-                      <span className="pl-3 text-[#1c2b4c] font-medium">₹</span>
-                      <input type="text" className="w-full bg-transparent px-2 py-2.5 text-sm outline-none text-[#1c2b4c]" />
+                      <input type="number" placeholder="0" className="w-full bg-transparent px-3 py-2.5 text-sm outline-none text-[#1c2b4c]" />
                     </div>
                   </div>
                 </div>

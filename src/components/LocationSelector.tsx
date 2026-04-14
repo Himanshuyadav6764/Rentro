@@ -60,6 +60,7 @@ export default function LocationSelector() {
   useEffect(() => {
     if (location.lat) {
       localStorage.setItem('user_location', JSON.stringify(location));
+      window.dispatchEvent(new Event('rentro-location-updated'));
     }
   }, [location]);
 

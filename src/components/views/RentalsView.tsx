@@ -64,6 +64,8 @@ type RentalsViewProps = {
   searchQuery?: string;
 };
 
+const EMPTY_CREATED_LISTINGS: ListingSubmissionSummary[] = [];
+
 type IssueDraft = {
   issueType: IssueType;
   severity: Severity;
@@ -261,7 +263,8 @@ function getListingChatTargetName(listing: ListingItem) {
   return renter;
 }
 
-export default function RentalsView({ createdListings = [], onOpenOwnerChat, searchQuery = '' }: RentalsViewProps) {
+export default function RentalsView({ createdListings, onOpenOwnerChat, searchQuery = '' }: RentalsViewProps) {
+  const stableCreatedListings = createdListings ?? EMPTY_CREATED_LISTINGS;
   const [activeTab, setActiveTab] = useState<RentalsTab>('my_listings');
   const [listings, setListings] = useState<ListingItem[]>(seededListingsData);
   const [myRentals, setMyRentals] = useState<RentalItem[]>(myRentalsData);
@@ -282,7 +285,7 @@ export default function RentalsView({ createdListings = [], onOpenOwnerChat, sea
   const requestsCount = requests.length;
 
   const createdListingCards = useMemo<ListingItem[]>(() => {
-    return createdListings.map((listing, index) => ({
+    return stableCreatedListings.map((listing, index) => ({
       id: listing.itemId || `created-${index}-${listing.title}`,
       itemName: listing.title,
       rentedBy: 'Awaiting requests',
@@ -295,7 +298,7 @@ export default function RentalsView({ createdListings = [], onOpenOwnerChat, sea
       availabilityDays: listing.availability_days,
       source: 'live',
     }));
-  }, [createdListings]);
+  }, [stableCreatedListings]);
 
   const refreshListings = useCallback(async () => {
     setIsLoadingListings(true);
@@ -712,12 +715,31 @@ export default function RentalsView({ createdListings = [], onOpenOwnerChat, sea
           return;
         }
 
+        const history = payload.history;
+        if (
+          !history.id ||
+          !history.itemName ||
+          !history.counterpart ||
+          typeof history.amount !== 'number' ||
+          !history.completedOn ||
+          (history.role !== 'owner' && history.role !== 'renter')
+        ) {
+          setToast('Unable to accept request');
+          return;
+        }
+
+        const nextHistoryRecord: HistoryItem = {
+          id: history.id,
+          itemName: history.itemName,
+          counterpart: history.counterpart,
+          amount: history.amount,
+          completedOn: formatHistoryDate(history.completedOn),
+          role: history.role,
+        };
+
         setRequests((prev) => prev.filter((item) => item.id !== request.id));
         setHistoryRecords((prev) => [
-          {
-            ...payload.history,
-            completedOn: formatHistoryDate(payload.history.completedOn),
-          },
+          nextHistoryRecord,
           ...prev,
         ]);
         setToast('Request accepted.');

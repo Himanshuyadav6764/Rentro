@@ -70,3 +70,7 @@ export async function getCurrentJwtUser() {
     return null;
   }
 }
+
+export async function getCurrentUser() {
+  return getCurrentJwtUser();
+}

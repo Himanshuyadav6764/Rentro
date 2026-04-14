@@ -71,7 +71,7 @@ src/
 Copy and configure:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 Required groups:
@@ -91,7 +91,7 @@ Required groups:
 npm install
 ```
 
-2. Configure `.env.local`
+2. Configure `.env`
 
 3. Start dev server
 

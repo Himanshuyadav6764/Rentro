@@ -14,239 +14,151 @@ import {
   Gamepad,
   Wrench,
   Zap,
-  Calendar,
-   X
+   Calendar
 } from 'lucide-react';
 import LocationSelector from '../LocationSelector';
 
-// Haversine formula to calculate distance in KM
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
-
-const SUB_CATEGORIES = [
-  { name: "TVs, Video - Audio", image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&q=80&w=200" },
-  { name: "Kitchen Appliances", image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=200" },
-  { name: "Computers & Laptops", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&q=80&w=200" },
-  { name: "Cameras & Lenses", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=200" },
-  { name: "Games & Entertainment", image: "https://images.unsplash.com/photo-1605898962319-19451a74219f?auto=format&fit=crop&q=80&w=200" },
-  { name: "Fridges", image: "https://images.unsplash.com/photo-1571175488180-ef9b042a6911?auto=format&fit=crop&q=80&w=200" },
-  { name: "Accessories", image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&q=80&w=200" },
-  { name: "Printers & Monitors", image: "https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&q=80&w=200" },
-  { name: "ACs", image: "https://images.unsplash.com/photo-1631541909061-71e349d1f103?auto=format&fit=crop&q=80&w=200" },
-  { name: "Washing Machines", image: "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&q=80&w=200" },
-];
-
 const CATEGORIES = [
-  { name: 'Academic', icon: <BookOpen className="w-7 h-7" />, color: 'bg-indigo-50 text-indigo-600' },
-  { name: 'Electronics', icon: <Laptop className="w-7 h-7" />, color: 'bg-blue-50 text-blue-600' },
+   { name: 'Books', icon: <BookOpen className="w-7 h-7" />, color: 'bg-indigo-50 text-indigo-600' },
+   { name: 'Laptops', icon: <Laptop className="w-7 h-7" />, color: 'bg-blue-50 text-blue-600' },
   { name: 'Furniture', icon: <PenTool className="w-7 h-7" />, color: 'bg-amber-50 text-amber-600' },
   { name: 'Clothing', icon: <Shirt className="w-7 h-7" />, color: 'bg-pink-50 text-pink-600' },
   { name: 'Transport', icon: <Zap className="w-7 h-7" />, color: 'bg-emerald-50 text-emerald-600' },
   { name: 'Gaming', icon: <Gamepad className="w-7 h-7" />, color: 'bg-purple-50 text-purple-600' },
   { name: 'Services', icon: <Wrench className="w-7 h-7" />, color: 'bg-slate-50 text-slate-600' },
-  { name: 'Events', icon: <Calendar className="w-7 h-7" />, color: 'bg-rose-50 text-rose-600' },
+   { name: 'Others', icon: <Calendar className="w-7 h-7" />, color: 'bg-rose-50 text-rose-600' },
 ];
 
-// Mock data with coordinates
-const MOCK_ITEMS = [
-  {
-    id: 1,
-    name: 'MacBook Pro M2',
-    price: '₹ 250',
-    deposit: '₹ 1000',
-    trustScore: 85,
-    owner: 'Ankit S.',
-    image: 'https://images.unsplash.com/photo-1517336714460-4c742a27744b?auto=format&fit=crop&q=80&w=400',
-    lat: 28.6139,
-    lng: 77.2090
-  },
-  {
-    id: 2,
-    name: 'Casio Scientific Calc',
-    price: '₹ 15',
-    deposit: '₹ 100',
-    trustScore: 92,
-    owner: 'Priya V.',
-    image: 'https://images.unsplash.com/photo-1626154320743-403487053e1a?auto=format&fit=crop&q=80&w=400',
-    lat: 28.5355,
-    lng: 77.3910
-  },
-  {
-    id: 3,
-    name: 'Engineering Graphics Set',
-    price: '₹ 30',
-    deposit: '₹ 150',
-    trustScore: 88,
-    owner: 'Rohan K.',
-    image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400',
-    lat: 28.4595,
-    lng: 77.0266
-  },
-  {
-    id: 4,
-    name: 'Sony WH-1000XM4',
-    price: '₹ 120',
-    deposit: '₹ 500',
-    trustScore: 95,
-    owner: 'Ishani M.',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=400',
-    lat: 28.6324,
-    lng: 77.2187
-  }
-];
-
-type NearbyItem = (typeof MOCK_ITEMS)[number] & {
-   distance?: number;
+type FeedItem = {
+   id: string;
+   title: string;
+   category?: string;
+   image_urls?: string[];
+   rent_price?: number;
+   deposit?: number;
+   location_label?: string;
+   location_area?: string;
+   location_city?: string;
+   distance_km?: number;
+   createdAt?: string;
 };
-
-const MAX_NEARBY_DISTANCE_KM = 50;
 
 interface HomeViewProps {
   onSelectItem?: (id: string) => void;
+   searchQuery?: string;
 }
 
-export default function HomeView({ onSelectItem }: HomeViewProps) {
-  const [showExplorer, setShowExplorer] = React.useState(false);
-  const [userLocation, setUserLocation] = React.useState<{lat: number, lng: number} | null>(null);
-   const [itemLocationLabels, setItemLocationLabels] = React.useState<Record<number, string>>({});
+function formatDistance(distanceKm?: number) {
+   if (distanceKm === undefined) {
+      return null;
+   }
 
-  // Load user location from localStorage (synced with LocationSelector)
-  useEffect(() => {
-    const updateLocation = () => {
+   if (distanceKm < 1) {
+      return `${Math.round(distanceKm * 1000)} m`;
+   }
+
+   return `${distanceKm.toFixed(1)} km`;
+}
+
+export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewProps) {
+  const [userLocation, setUserLocation] = React.useState<{lat: number, lng: number} | null>(null);
+   const [selectedCategory, setSelectedCategory] = React.useState('all');
+   const [items, setItems] = React.useState<FeedItem[]>([]);
+   const [isLoading, setIsLoading] = React.useState(false);
+
+   // Sync user location from LocationSelector persisted state.
+   useEffect(() => {
+      const updateLocation = () => {
       const saved = localStorage.getItem('user_location');
       if (saved) {
-        const parsed = JSON.parse(saved);
+            const parsed = JSON.parse(saved) as { lat?: number; lng?: number };
             if (typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-          setUserLocation({ lat: parsed.lat, lng: parsed.lng });
+               const nextLat = parsed.lat;
+               const nextLng = parsed.lng;
+               setUserLocation((prev) => {
+                  if (prev?.lat === nextLat && prev?.lng === nextLng) {
+                     return prev;
+                  }
+
+                  return { lat: nextLat, lng: nextLng };
+               });
         }
       }
     };
 
     updateLocation();
-    const interval = setInterval(updateLocation, 2000); // Poll for changes
-    return () => clearInterval(interval);
+      window.addEventListener('rentro-location-updated', updateLocation);
+      return () => window.removeEventListener('rentro-location-updated', updateLocation);
   }, []);
 
-   const sortedItems = React.useMemo<NearbyItem[]>(() => {
-      if (!userLocation) {
-             return [];
-      }
-
-      return MOCK_ITEMS
-         .map((item) => ({
-            ...item,
-            distance: getDistance(userLocation.lat, userLocation.lng, item.lat, item.lng),
-         }))
-             .filter((item) => (item.distance ?? Number.POSITIVE_INFINITY) <= MAX_NEARBY_DISTANCE_KM)
-         .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-   }, [userLocation]);
-
    useEffect(() => {
-      if (sortedItems.length === 0) {
-         return;
-      }
-
-      const unresolvedItems = sortedItems.filter((item) => !itemLocationLabels[item.id]);
-      if (unresolvedItems.length === 0) {
-         return;
-      }
-
       let cancelled = false;
 
-      const resolveLocations = async () => {
-         const resolved = await Promise.all(
-            unresolvedItems.map(async (item) => {
-               try {
-                  const response = await fetch(`/api/location/reverse?lat=${item.lat}&lng=${item.lng}`, {
-                     cache: 'force-cache',
-                  });
-                  const payload = (await response.json()) as {
-                     success: boolean;
-                     location?: { label?: string };
-                  };
+      const fetchListings = async () => {
+         setIsLoading(true);
 
-                  if (!response.ok || !payload.success || !payload.location?.label) {
-                     return [item.id, 'Location unavailable'] as const;
-                  }
-
-                  return [item.id, payload.location.label] as const;
-               } catch {
-                  return [item.id, 'Location unavailable'] as const;
-               }
-            }),
-         );
-
-         if (cancelled) {
-            return;
-         }
-
-         setItemLocationLabels((prev) => {
-            const next = { ...prev };
-            for (const [id, label] of resolved) {
-               if (!next[id]) {
-                  next[id] = label;
-               }
+         try {
+            const params = new URLSearchParams();
+            if (searchQuery.trim()) {
+               params.set('search', searchQuery.trim());
             }
-            return next;
-         });
+            if (selectedCategory !== 'all') {
+               params.set('category', selectedCategory);
+            }
+            if (userLocation) {
+               params.set('lat', String(userLocation.lat));
+               params.set('lng', String(userLocation.lng));
+               params.set('radiusKm', '50');
+            }
+
+            const query = params.toString();
+            const response = await fetch(`/api/listings${query ? `?${query}` : ''}`, {
+               cache: 'no-store',
+            });
+
+            const payload = (await response.json()) as { success?: boolean; listings?: FeedItem[] };
+            if (!response.ok || !payload.success) {
+               if (!cancelled) {
+                  setItems([]);
+               }
+               return;
+            }
+
+            if (!cancelled) {
+               setItems(payload.listings || []);
+            }
+         } catch {
+            if (!cancelled) {
+               setItems([]);
+            }
+         } finally {
+            if (!cancelled) {
+               setIsLoading(false);
+            }
+         }
       };
 
-      void resolveLocations();
+      void fetchListings();
 
       return () => {
          cancelled = true;
       };
-   }, [itemLocationLabels, sortedItems]);
+   }, [searchQuery, selectedCategory, userLocation]);
+
+   const availableCategories = React.useMemo(() => {
+      const unique = new Set<string>();
+      for (const item of items) {
+         if (item.category?.trim()) {
+            unique.add(item.category.trim());
+         }
+      }
+
+      return ['all', ...Array.from(unique).sort((a, b) => a.localeCompare(b))];
+   }, [items]);
 
   return (
     <div className="flex-1 overflow-x-hidden bg-white pb-32 h-full overflow-y-auto hide-scrollbar sm:px-4">
       <div className="max-w-5xl mx-auto w-full">
-        
-        {/* Category Explorer Modal */}
-        {showExplorer && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setShowExplorer(false)}></div>
-            <div className="relative w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-400">
-               <header className="px-8 py-8 flex items-center justify-between border-b border-slate-50">
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">Explore Categories</h3>
-                  <button onClick={() => setShowExplorer(false)} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all">
-                     <X size={24} strokeWidth={3} />
-                  </button>
-               </header>
-               <div className="flex-1 overflow-y-auto p-8 grid grid-cols-2 sm:grid-cols-3 gap-y-10 gap-x-6 hide-scrollbar">
-                  {SUB_CATEGORIES.map((sub, i) => (
-                    <div key={i} className="flex flex-col items-center gap-4 group cursor-pointer">
-                       <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-50 shadow-lg group-hover:scale-110 group-active:scale-95 transition-all">
-                                       <img
-                                          src={sub.image}
-                                          alt={sub.name}
-                                          loading="lazy"
-                                          fetchPriority="low"
-                                          className="w-full h-full object-cover"
-                                       />
-                       </div>
-                       <span className="text-[13px] font-bold text-slate-700 text-center leading-tight group-hover:text-brand transition-colors">{sub.name}</span>
-                    </div>
-                  ))}
-                  <div className="flex flex-col items-center gap-4 group cursor-pointer">
-                     <div className="w-24 h-24 rounded-full bg-slate-50 border-4 border-white shadow-lg flex items-center justify-center group-hover:scale-110 transition-all">
-                        <ChevronRight size={32} className="text-brand group-hover:translate-x-1 transition-transform" />
-                     </div>
-                     <span className="text-[13px] font-black text-brand uppercase tracking-widest">View All</span>
-                  </div>
-               </div>
-            </div>
-          </div>
-        )}
 
         {/* Location Selector */}
         <div className="px-6 pt-8 pb-4">
@@ -260,7 +172,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
               {CATEGORIES.map((cat, i) => (
                 <div 
                   key={i} 
-                  onClick={() => setShowExplorer(true)}
+                           onClick={() => setSelectedCategory(cat.name)}
                   className="flex flex-col items-center gap-3 min-w-[90px] group cursor-pointer"
                 >
                    <div className={`w-20 h-20 ${cat.color} rounded-[2rem] flex items-center justify-center shadow-lg shadow-black/5 group-hover:scale-110 group-active:scale-95 transition-all duration-300 border border-white/20`}>
@@ -270,6 +182,26 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
                 </div>
               ))}
            </div>
+
+                <div className="mt-3 flex gap-2 overflow-x-auto hide-scrollbar">
+                     {availableCategories.map((category) => {
+                        const active = selectedCategory.toLowerCase() === category.toLowerCase();
+                        return (
+                           <button
+                              key={category}
+                              type="button"
+                              onClick={() => setSelectedCategory(category)}
+                              className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                                 active
+                                    ? 'bg-[#1b52d6] text-white'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              }`}
+                           >
+                              {category === 'all' ? 'All' : category}
+                           </button>
+                        );
+                     })}
+                </div>
         </div>
 
         {/* Trust Banner */}
@@ -300,7 +232,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
         <div className="px-6 mt-10">
            <div className="flex justify-between items-end mb-8">
               <div>
-                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Nearby You (Within 50km)</h3>
+                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">10km first, then 50km</h3>
                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Recommendation Grid</h2>
               </div>
               <button className="text-brand font-black text-[11px] uppercase tracking-widest flex items-center gap-1 pb-1 hover:gap-2 transition-all">
@@ -308,46 +240,51 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
               </button>
            </div>
 
-                {sortedItems.length === 0 ? (
+                        {isLoading ? (
+                           <div className="rounded-3xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
+                              <p className="text-base font-semibold text-slate-700">Loading nearby listings...</p>
+                           </div>
+                        ) : items.length === 0 ? (
                    <div className="rounded-3xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
-                      <p className="text-base font-semibold text-slate-700">No items found within 50km of your selected location.</p>
-                      <p className="mt-2 text-sm text-slate-500">Update location to discover nearby listings with accurate area details.</p>
+                                 <p className="text-base font-semibold text-slate-700">No listings found for current search/filter in 50km radius.</p>
+                                 <p className="mt-2 text-sm text-slate-500">Location select karo, phir search ya category filter try karo.</p>
                    </div>
                 ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                     {sortedItems.map((item) => (
+                               {items.map((item) => (
                 <div 
                   key={item.id} 
-                  onClick={() => onSelectItem?.(item.id.toString())}
+                           onClick={() => onSelectItem?.(item.id)}
                   className="group bg-white rounded-[2.5rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
                    <div className="w-full h-44 bg-slate-50 rounded-[2rem] overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
                                  <img
-                                    src={item.image}
-                                    alt={item.name}
+                                                      src={item.image_urls?.[0] || 'https://images.unsplash.com/photo-1587614382346-4ec70e388b28?auto=format&fit=crop&q=80&w=1000'}
+                                                      alt={item.title}
                                     loading="lazy"
                                     fetchPriority="low"
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                  />
 
                       <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-[13px] font-black px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
-                         {item.price}<span className="text-slate-400 font-bold">/day</span>
+                                     ₹ {item.rent_price || 0}<span className="text-slate-400 font-bold">/day</span>
                       </div>
                    </div>
                    <div className="flex flex-col gap-2 px-1 pb-2">
                       <h3 className="font-bold text-slate-800 text-[17px] leading-tight group-hover:text-brand transition-colors truncate">
-                        {item.name}
+                                    {item.title}
                       </h3>
-                      <p className="text-sm font-semibold text-slate-700">Rent per day: {item.price}/day</p>
-                      <p className="text-sm font-semibold text-slate-700">Deposit: {item.deposit}</p>
+                                 <p className="text-sm font-semibold text-slate-700">Category: {item.category || 'Others'}</p>
+                                 <p className="text-sm font-semibold text-slate-700">Deposit: ₹ {item.deposit || 0}</p>
                       <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                         <MapPin size={14} className="text-brand" />
-                        {itemLocationLabels[item.id] || 'Resolving exact location...'}
+                                    {item.location_label || item.location_area || item.location_city || 'Location unavailable'}
                       </p>
-                      <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                        <Star size={14} className="text-emerald-600" fill="currentColor" />
-                        Customer trust score: {item.trustScore}
-                      </p>
-                      <p className="text-sm font-semibold text-slate-700">By seller: {item.owner}</p>
+                                 {item.distance_km !== undefined ? (
+                                    <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                                       <Star size={14} className="text-emerald-600" fill="currentColor" />
+                                       Distance: {formatDistance(item.distance_km)}
+                                    </p>
+                                 ) : null}
                    </div>
                 </div>
               ))}
