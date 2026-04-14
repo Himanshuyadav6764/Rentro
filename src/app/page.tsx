@@ -275,7 +275,7 @@ export default function AppHome() {
     }
 
     switch (activeTab) {
-      case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
+      case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} searchQuery={searchQuery} />;
       case "chats": 
         if (!isLoggedIn) {
           return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
@@ -296,7 +296,7 @@ export default function AppHome() {
             onProfileUpdated={handleProfileUpdated}
           />
         );
-      default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
+      default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} searchQuery={searchQuery} />;
     }
   };
 

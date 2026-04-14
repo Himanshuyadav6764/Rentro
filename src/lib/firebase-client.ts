@@ -32,7 +32,7 @@ function getFirebaseConfig() {
     isLikelyPlaceholder(appId)
   ) {
     throw new Error(
-      "Firebase client is using placeholder values. Update NEXT_PUBLIC_FIREBASE_* in .env.local.",
+      "Firebase client is using placeholder values. Update NEXT_PUBLIC_FIREBASE_* in .env.",
     );
   }
 

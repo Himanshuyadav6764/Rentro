@@ -40,6 +40,24 @@ type EditableProfile = {
   avatar: string;
 };
 
+function normalizePhoneForProfileInput(value: string) {
+  const digitsOnly = value.replace(/\D/g, '');
+
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) {
+    return digitsOnly.slice(0, 10);
+  }
+
+  if (digitsOnly.length > 10) {
+    return digitsOnly.slice(0, 10);
+  }
+
+  return digitsOnly;
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function fallbackName(email?: string, phone?: string) {
   if (email) {
     return email.split("@")[0] || "Rentro User";
@@ -130,10 +148,29 @@ export default function ProfileView({ currentUser, onProfileUpdated }: ProfileVi
     setIsSavingProfile(true);
     setPhotoMessage(null);
 
+    const normalizedEmail =
+      tempProfile.email === 'Not added' ? '' : tempProfile.email.trim().toLowerCase();
+    const normalizedPhone =
+      tempProfile.phone === 'Not added'
+        ? ''
+        : normalizePhoneForProfileInput(tempProfile.phone.trim());
+
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      setPhotoMessage('Please enter a valid email address only.');
+      setIsSavingProfile(false);
+      return;
+    }
+
+    if (normalizedPhone && normalizedPhone.length !== 10) {
+      setPhotoMessage('Phone number must be exactly 10 digits.');
+      setIsSavingProfile(false);
+      return;
+    }
+
     const payload = {
       name: tempProfile.name.trim() || profile.name,
-      email: tempProfile.email === 'Not added' ? '' : tempProfile.email.trim().toLowerCase(),
-      phone: tempProfile.phone === 'Not added' ? '' : tempProfile.phone.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
       image: tempProfile.avatar,
     };
 
@@ -207,7 +244,11 @@ export default function ProfileView({ currentUser, onProfileUpdated }: ProfileVi
   };
 
   const handleEditClick = () => {
-    setTempProfile({ ...profile });
+    setTempProfile({
+      ...profile,
+      email: profile.email === 'Not added' ? '' : profile.email,
+      phone: profile.phone === 'Not added' ? '' : normalizePhoneForProfileInput(profile.phone),
+    });
     setIsPhotoMenuOpen(false);
     setPhotoMessage(null);
     setIsEditing(true);
@@ -456,10 +497,27 @@ export default function ProfileView({ currentUser, onProfileUpdated }: ProfileVi
               {/* Form Sections */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <EditField label="Full Name" value={tempProfile.name} onChange={(v) => setTempProfile({ ...tempProfile, name: v })} icon={<User size={16} />} />
-                <EditField label="Phone" value={tempProfile.phone} onChange={(v) => setTempProfile({ ...tempProfile, phone: v })} icon={<Smartphone size={16} />} />
+                <EditField
+                  label="Phone"
+                  value={tempProfile.phone}
+                  onChange={(v) =>
+                    setTempProfile({ ...tempProfile, phone: normalizePhoneForProfileInput(v) })
+                  }
+                  icon={<Smartphone size={16} />}
+                  inputType="tel"
+                  maxLength={10}
+                  placeholder="10-digit phone"
+                />
               </div>
 
-              <EditField label="Email Address" value={tempProfile.email} onChange={(v) => setTempProfile({ ...tempProfile, email: v })} icon={<Mail size={16} />} />
+              <EditField
+                label="Email Address"
+                value={tempProfile.email}
+                onChange={(v) => setTempProfile({ ...tempProfile, email: v.trim().toLowerCase() })}
+                icon={<Mail size={16} />}
+                inputType="email"
+                placeholder="name@example.com"
+              />
             </div>
 
             <footer className="px-8 py-6 border-t border-slate-50 bg-slate-50/50 backdrop-blur-sm flex items-center gap-4">
@@ -662,16 +720,34 @@ function DetailCard({ icon, value, label }: { icon: React.ReactNode, value: stri
   );
 }
 
-function EditField({ label, value, onChange, icon }: { label: string, value: string, onChange: (v: string) => void, icon?: React.ReactNode }) {
+function EditField({
+  label,
+  value,
+  onChange,
+  icon,
+  inputType = 'text',
+  maxLength,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  icon?: React.ReactNode;
+  inputType?: 'text' | 'email' | 'tel';
+  maxLength?: number;
+  placeholder?: string;
+}) {
   return (
     <div className="flex flex-col gap-2 scale-in animate-in duration-300">
       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
       <div className="relative flex items-center group">
         {icon && <div className="absolute left-4 text-slate-300 group-focus-within:text-brand transition-colors">{icon}</div>}
         <input
-          type="text"
+          type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          maxLength={maxLength}
+          placeholder={placeholder}
           className={`w-full bg-slate-50 border border-slate-100 p-4 ${icon ? 'pl-11' : 'pl-4'} rounded-2xl font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 ring-brand/5 focus:border-brand/30 transition-all`}
         />
       </div>

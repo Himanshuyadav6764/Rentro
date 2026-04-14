@@ -20,6 +20,11 @@ export interface IItem {
   issues_count: number;
   late_returns_count: number;
   behavior_notes: string[];
+  location_lat?: number;
+  location_lng?: number;
+  location_label?: string;
+  location_area?: string;
+  location_city?: string;
   createdAt: Date;
 }
 
@@ -47,6 +52,11 @@ const ItemSchema = new Schema<IItem>({
   issues_count: { type: Number, default: 0 },
   late_returns_count: { type: Number, default: 0 },
   behavior_notes: { type: [String], default: [] },
+  location_lat: Number,
+  location_lng: Number,
+  location_label: String,
+  location_area: String,
+  location_city: String,
   createdAt: { type: Date, default: Date.now },
 });
 

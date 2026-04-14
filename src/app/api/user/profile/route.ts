@@ -17,9 +17,23 @@ const imageSchema = z
 const bodySchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   email: z.email().trim().toLowerCase().optional().or(z.literal("")),
-  phone: z.string().trim().min(7).max(20).optional().or(z.literal("")),
+  phone: z.string().trim().max(20).optional().or(z.literal("")),
   image: imageSchema.optional(),
 });
+
+function normalizePhone(value: string) {
+  const digitsOnly = value.replace(/\D/g, "");
+
+  if (digitsOnly.length === 11 && digitsOnly.startsWith("0")) {
+    return digitsOnly.slice(0, 10);
+  }
+
+  if (digitsOnly.length > 10) {
+    return digitsOnly.slice(0, 10);
+  }
+
+  return digitsOnly;
+}
 
 export async function PATCH(request: Request) {
   try {
@@ -34,6 +48,16 @@ export async function PATCH(request: Request) {
 
     const json = await request.json();
     const payload = bodySchema.parse(json);
+
+    const normalizedEmail = payload.email ? payload.email.trim().toLowerCase() : "";
+    const normalizedPhone = payload.phone ? normalizePhone(payload.phone.trim()) : "";
+
+    if (normalizedPhone && normalizedPhone.length !== 10) {
+      return NextResponse.json(
+        { success: false, message: "Phone number must be exactly 10 digits" },
+        { status: 400 },
+      );
+    }
 
     const updates: {
       name?: string;
@@ -50,11 +74,11 @@ export async function PATCH(request: Request) {
     }
 
     if (payload.email !== undefined) {
-      updates.email = payload.email || undefined;
+      updates.email = normalizedEmail || undefined;
     }
 
     if (payload.phone !== undefined) {
-      updates.phone = payload.phone || undefined;
+      updates.phone = normalizedPhone || undefined;
     }
 
     if (payload.image) {

@@ -44,9 +44,20 @@ type ValidationErrors = {
 };
 
 export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraft }: PricingAvailabilityStepProps) {
-  const [selectedDays, setSelectedDays] = useState<string[]>(['Mon', 'Tue']);
+  const [selectedDays, setSelectedDays] = useState<string[]>(() => {
+    const currentDayIndex = new Date().getDay();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return [dayNames[currentDayIndex]];
+  });
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().split('T')[0];
+  }, []);
   const [rentPrice, setRentPrice] = useState(10);
   const [deposit, setDeposit] = useState(20);
   const [condition, setCondition] = useState<ItemCondition>('new');
@@ -132,6 +143,37 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
 
     setIsSubmitting(true);
     try {
+      let locationPayload:
+        | { lat: number; lng: number; label?: string; area?: string; city?: string }
+        | undefined;
+
+      if (typeof window !== 'undefined') {
+        const rawLocation = localStorage.getItem('user_location');
+        if (rawLocation) {
+          try {
+            const parsed = JSON.parse(rawLocation) as {
+              lat?: number;
+              lng?: number;
+              address?: string;
+              area?: string;
+              city?: string;
+            };
+
+            if (typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+              locationPayload = {
+                lat: parsed.lat,
+                lng: parsed.lng,
+                label: parsed.address,
+                area: parsed.area,
+                city: parsed.city,
+              };
+            }
+          } catch {
+            locationPayload = undefined;
+          }
+        }
+      }
+
       const response = await fetch('/api/add-item-step2', {
         method: 'POST',
         headers: {
@@ -150,6 +192,7 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
           rent_price: rentPrice,
           deposit,
           ai_suggested_price: aiSuggestion.suggested_price,
+          location: locationPayload,
         }),
       });
 
@@ -237,6 +280,7 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
               <label className="mb-1 block text-sm font-medium text-[#1c2b4c]">Start Date</label>
               <input
                 type="date"
+                min={todayStr}
                 value={startDate}
                 onChange={(event) => setStartDate(event.target.value)}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1b52d6]"
@@ -247,6 +291,7 @@ export default function PricingAvailabilityStep({ onBack, onSuccess, listingDraf
               <label className="mb-1 block text-sm font-medium text-[#1c2b4c]">End Date</label>
               <input
                 type="date"
+                min={startDate || todayStr}
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#1b52d6]"
