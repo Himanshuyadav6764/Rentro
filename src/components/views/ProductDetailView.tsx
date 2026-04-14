@@ -333,11 +333,11 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
   );
 }
 
-function AIInsightRow({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+function AIInsightRow({ icon, title, desc }: { icon: React.ReactElement<{ size?: number }>, title: string, desc: string }) {
    return (
       <div className="flex items-start gap-5">
          <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 border border-white/5">
-            {React.cloneElement(icon as React.ReactElement, { size: 24 })}
+            {React.cloneElement(icon, { size: 24 })}
          </div>
          <div>
             <p className="text-white font-black text-lg tracking-tight mb-1">{title}</p>

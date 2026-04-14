@@ -7,25 +7,45 @@ interface LocationData {
   address: string;
   lat: number | null;
   lng: number | null;
+  area?: string;
+  city?: string;
+  isCurrent?: boolean;
+}
+
+interface LocationSuggestion {
+  area?: string;
+  city?: string;
+  label: string;
+  lat: number;
+  lng: number;
+  distanceKm?: number;
+  formatted?: string;
 }
 
 export default function LocationSelector() {
-  const [location, setLocation] = useState<LocationData>({ address: "Select Location", lat: null, lng: null });
+  const [location, setLocation] = useState<LocationData>({
+    address: "Select Location",
+    lat: null,
+    lng: null,
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [status, setStatus] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  const API_KEY = "YOUR_API_KEY"; // Placeholder
 
   useEffect(() => {
     const saved = localStorage.getItem('user_location');
     if (saved) {
-      setLocation(JSON.parse(saved));
-    } else {
-      detectLocation();
+      try {
+        const parsed = JSON.parse(saved) as LocationData;
+        if (parsed?.address) {
+          setLocation({ ...parsed, isCurrent: true });
+        }
+      } catch {
+        localStorage.removeItem('user_location');
+      }
     }
 
     function handleClickOutside(event: MouseEvent) {
@@ -43,135 +63,134 @@ export default function LocationSelector() {
     }
   }, [location]);
 
+  const fetchSuggestions = React.useCallback(async (query: string) => {
+    try {
+      const params = new URLSearchParams({
+        q: query,
+      });
+
+      if (location.lat !== null && location.lng !== null) {
+        params.set('lat', String(location.lat));
+        params.set('lng', String(location.lng));
+      }
+
+      const response = await fetch(
+        `/api/location/search?${params.toString()}`,
+        { cache: 'no-store' },
+      );
+      const payload = (await response.json()) as {
+        success: boolean;
+        suggestions?: LocationSuggestion[];
+      };
+
+      if (!response.ok || !payload.success) {
+        setSuggestions([]);
+        return;
+      }
+
+      setSuggestions(payload.suggestions || []);
+    } catch {
+      setSuggestions([]);
+    }
+  }, [location.lat, location.lng]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.length > 2) {
-        fetchSuggestions(searchQuery);
+        void fetchSuggestions(searchQuery);
       } else {
         setSuggestions([]);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [fetchSuggestions, searchQuery]);
 
   const detectLocation = async () => {
     setIsLoading(true);
-    setStatus("Detecting...");
+    setErrorMessage(null);
     
     if (!navigator.geolocation) {
-      fallbackToIP();
+      setErrorMessage('Browser geolocation supported nahi hai. Location manually search karo.');
+      setIsLoading(false);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        await reverseGeocode(latitude, longitude);
+        await reverseGeocode(latitude, longitude, true);
       },
       (error) => {
-        console.warn("Geolocation permission denied, falling back to IP...");
-        fallbackToIP();
-      }
+        if (error.code === error.PERMISSION_DENIED) {
+          setErrorMessage('Location permission denied. Browser settings me location allow karo.');
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          setErrorMessage('Current GPS location detect nahi ho pa rahi.');
+        } else if (error.code === error.TIMEOUT) {
+          setErrorMessage('GPS request timeout ho gaya. Dobara try karo.');
+        } else {
+          setErrorMessage('GPS location detect nahi ho paayi.');
+        }
+        setIsLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      },
     );
   };
 
-  const fallbackToIP = async () => {
+  const reverseGeocode = async (lat: number, lng: number, isCurrent = false) => {
     try {
-      const resp = await fetch('https://ipapi.co/json/');
-      const data = await resp.json();
-      if (data.latitude) {
-        await reverseGeocode(data.latitude, data.longitude);
+      const response = await fetch(
+        `/api/location/reverse?lat=${lat}&lng=${lng}`,
+        { cache: 'no-store' },
+      );
+
+      const payload = (await response.json()) as {
+        success: boolean;
+        message?: string;
+        location?: {
+          label: string;
+          area?: string;
+          city?: string;
+          lat: number;
+          lng: number;
+        };
+      };
+
+      if (!response.ok || !payload.success || !payload.location) {
+        setErrorMessage(payload.message || 'Location service failed.');
+        return;
       }
-    } catch (e) {
-      setStatus("Location Denied");
+
+      setLocation({
+        address: payload.location.label,
+        area: payload.location.area,
+        city: payload.location.city,
+        lat: payload.location.lat,
+        lng: payload.location.lng,
+        isCurrent,
+      });
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage('Location service unavailable. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const reverseGeocode = async (lat: number, lng: number) => {
-    try {
-      // Switched to Nominatim (OpenStreetMap) - No API Key required for basic usage
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const data = await response.json();
-      
-      if (data.address) {
-        // Build a "Swiggy-style" full accurate address
-        const road = data.address.road || data.address.house_number;
-        const localArea = data.address.suburb || 
-                          data.address.neighbourhood || 
-                          data.address.residential || 
-                          data.address.sector ||
-                          data.address.colony;
-        const city = data.address.city || data.address.town || data.address.village;
-        
-        // Construct the final string
-        let fullAddress = "";
-        if (road && localArea) fullAddress = `${road}, ${localArea}`;
-        else if (localArea) fullAddress = localArea;
-        else if (road) fullAddress = road;
-        else fullAddress = city || "Unknown Location";
-
-        if (city && !fullAddress.includes(city)) {
-          fullAddress += `, ${city}`;
-        }
-                     
-        setLocation({ address: fullAddress, lat, lng });
-        setStatus(null);
-      } else {
-        throw new Error("Address not found");
-      }
-    } catch (err) {
-      console.error("Geocoding failed:", err);
-      // Final fallback to coords if everything fails
-      setLocation({ address: `${lat.toFixed(2)}, ${lng.toFixed(2)}`, lat, lng });
-      setStatus("Using GPS");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchSuggestions = async (query: string) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const data = await response.json();
-      setSuggestions(data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSelectSuggestion = (res: any) => {
-    // Construct full accurate address from result address object parts
-    const road = res.address.road || res.address.house_number;
-    const localArea = res.address.suburb || 
-                      res.address.neighbourhood || 
-                      res.address.residential || 
-                      res.address.sector ||
-                      res.address.colony;
-    const city = res.address.city || res.address.town || res.address.village;
-    
-    let fullAddress = "";
-    if (road && localArea) fullAddress = `${road}, ${localArea}`;
-    else if (localArea) fullAddress = localArea;
-    else if (road) fullAddress = road;
-    else fullAddress = city || res.display_name.split(',')[0];
-
-    if (city && !fullAddress.includes(city)) {
-      fullAddress += `, ${city}`;
-    }
-                 
+  const handleSelectSuggestion = (res: LocationSuggestion) => {
     setLocation({
-      address: fullAddress,
-      lat: parseFloat(res.lat),
-      lng: parseFloat(res.lon)
+      address: res.label,
+      area: res.area,
+      city: res.city,
+      lat: res.lat,
+      lng: res.lng,
+      isCurrent: true,
     });
+
+    setErrorMessage(null);
     setSearchQuery("");
     setSuggestions([]);
     setIsDropdownOpen(false);
@@ -222,6 +241,13 @@ export default function LocationSelector() {
             <Crosshair size={18} className="text-brand" />
             <span className="text-[13px] font-black text-brand">Use GPS Location</span>
           </button>
+
+          {errorMessage ? (
+            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-700">
+              {errorMessage}
+            </div>
+          ) : null}
+
           <div className="max-h-[250px] overflow-y-auto hide-scrollbar space-y-2">
             {suggestions.map((res, i) => (
               <button 
@@ -232,9 +258,18 @@ export default function LocationSelector() {
                 <MapPinIcon size={16} className="text-slate-300 mt-1" />
                 <div className="flex-1">
                    <p className="text-[13px] font-bold text-slate-700">
-                    {res.address.suburb || res.address.neighbourhood || res.address.city || res.display_name.split(',')[0]}
+                    {res.label}
                    </p>
-                   <p className="text-[11px] text-slate-400 truncate">{res.display_name}</p>
+                   {res.formatted ? (
+                     <p className="text-[11px] text-slate-400 truncate">{res.formatted}</p>
+                   ) : null}
+                   {typeof res.distanceKm === 'number' ? (
+                     <p className="text-[11px] text-brand font-semibold mt-0.5">
+                       {res.distanceKm < 1
+                         ? `${Math.round(res.distanceKm * 1000)} m away`
+                         : `${res.distanceKm.toFixed(1)} km away`}
+                     </p>
+                   ) : null}
                 </div>
               </button>
             ))}

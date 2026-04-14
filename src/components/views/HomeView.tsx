@@ -1,30 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { 
-  ChevronDown, 
   ChevronRight, 
   CheckCircle2, 
   MapPin, 
   Laptop, 
   BookOpen, 
-  Calculator, 
-  Smartphone, 
-  Backpack, 
-  Package,
   TrendingUp,
   Star,
-  Search,
   PenTool,
   Shirt,
   Gamepad,
   Wrench,
   Zap,
   Calendar,
-  X,
-  Navigation
+   X
 } from 'lucide-react';
-import Image from 'next/image';
 import LocationSelector from '../LocationSelector';
 
 // Haversine formula to calculate distance in KM
@@ -112,6 +104,12 @@ const MOCK_ITEMS = [
   }
 ];
 
+type NearbyItem = (typeof MOCK_ITEMS)[number] & {
+   distance?: number;
+};
+
+const MAX_NEARBY_DISTANCE_KM = 50;
+
 interface HomeViewProps {
   onSelectItem?: (id: string) => void;
 }
@@ -119,7 +117,7 @@ interface HomeViewProps {
 export default function HomeView({ onSelectItem }: HomeViewProps) {
   const [showExplorer, setShowExplorer] = React.useState(false);
   const [userLocation, setUserLocation] = React.useState<{lat: number, lng: number} | null>(null);
-  const [sortedItems, setSortedItems] = React.useState(MOCK_ITEMS);
+   const [itemLocationLabels, setItemLocationLabels] = React.useState<Record<number, string>>({});
 
   // Load user location from localStorage (synced with LocationSelector)
   useEffect(() => {
@@ -127,7 +125,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
       const saved = localStorage.getItem('user_location');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.lat && parsed.lng) {
+            if (typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
           setUserLocation({ lat: parsed.lat, lng: parsed.lng });
         }
       }
@@ -138,16 +136,76 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Sort items by distance when user location is available
-  useEffect(() => {
-    if (userLocation) {
-      const itemsWithDistance = MOCK_ITEMS.map(item => ({
-        ...item,
-        distance: getDistance(userLocation.lat, userLocation.lng, item.lat, item.lng)
-      })).sort((a, b) => a.distance - b.distance);
-      setSortedItems(itemsWithDistance);
-    }
-  }, [userLocation]);
+   const sortedItems = React.useMemo<NearbyItem[]>(() => {
+      if (!userLocation) {
+             return [];
+      }
+
+      return MOCK_ITEMS
+         .map((item) => ({
+            ...item,
+            distance: getDistance(userLocation.lat, userLocation.lng, item.lat, item.lng),
+         }))
+             .filter((item) => (item.distance ?? Number.POSITIVE_INFINITY) <= MAX_NEARBY_DISTANCE_KM)
+         .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+   }, [userLocation]);
+
+   useEffect(() => {
+      if (sortedItems.length === 0) {
+         return;
+      }
+
+      const unresolvedItems = sortedItems.filter((item) => !itemLocationLabels[item.id]);
+      if (unresolvedItems.length === 0) {
+         return;
+      }
+
+      let cancelled = false;
+
+      const resolveLocations = async () => {
+         const resolved = await Promise.all(
+            unresolvedItems.map(async (item) => {
+               try {
+                  const response = await fetch(`/api/location/reverse?lat=${item.lat}&lng=${item.lng}`, {
+                     cache: 'force-cache',
+                  });
+                  const payload = (await response.json()) as {
+                     success: boolean;
+                     location?: { label?: string };
+                  };
+
+                  if (!response.ok || !payload.success || !payload.location?.label) {
+                     return [item.id, 'Location unavailable'] as const;
+                  }
+
+                  return [item.id, payload.location.label] as const;
+               } catch {
+                  return [item.id, 'Location unavailable'] as const;
+               }
+            }),
+         );
+
+         if (cancelled) {
+            return;
+         }
+
+         setItemLocationLabels((prev) => {
+            const next = { ...prev };
+            for (const [id, label] of resolved) {
+               if (!next[id]) {
+                  next[id] = label;
+               }
+            }
+            return next;
+         });
+      };
+
+      void resolveLocations();
+
+      return () => {
+         cancelled = true;
+      };
+   }, [itemLocationLabels, sortedItems]);
 
   return (
     <div className="flex-1 overflow-x-hidden bg-white pb-32 h-full overflow-y-auto hide-scrollbar sm:px-4">
@@ -168,7 +226,13 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
                   {SUB_CATEGORIES.map((sub, i) => (
                     <div key={i} className="flex flex-col items-center gap-4 group cursor-pointer">
                        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-50 shadow-lg group-hover:scale-110 group-active:scale-95 transition-all">
-                          <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                                       <img
+                                          src={sub.image}
+                                          alt={sub.name}
+                                          loading="lazy"
+                                          fetchPriority="low"
+                                          className="w-full h-full object-cover"
+                                       />
                        </div>
                        <span className="text-[13px] font-bold text-slate-700 text-center leading-tight group-hover:text-brand transition-colors">{sub.name}</span>
                     </div>
@@ -236,7 +300,7 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
         <div className="px-6 mt-10">
            <div className="flex justify-between items-end mb-8">
               <div>
-                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Nearby You</h3>
+                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Nearby You (Within 50km)</h3>
                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Recommendation Grid</h2>
               </div>
               <button className="text-brand font-black text-[11px] uppercase tracking-widest flex items-center gap-1 pb-1 hover:gap-2 transition-all">
@@ -244,62 +308,54 @@ export default function HomeView({ onSelectItem }: HomeViewProps) {
               </button>
            </div>
 
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedItems.map((item: any) => (
+                {sortedItems.length === 0 ? (
+                   <div className="rounded-3xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
+                      <p className="text-base font-semibold text-slate-700">No items found within 50km of your selected location.</p>
+                      <p className="mt-2 text-sm text-slate-500">Update location to discover nearby listings with accurate area details.</p>
+                   </div>
+                ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                     {sortedItems.map((item) => (
                 <div 
                   key={item.id} 
                   onClick={() => onSelectItem?.(item.id.toString())}
                   className="group bg-white rounded-[2.5rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
                    <div className="w-full h-44 bg-slate-50 rounded-[2rem] overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                      
-                      {/* Distance Badge */}
-                      {item.distance !== undefined && (
-                        <div className="absolute top-3 left-3 bg-brand text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 border border-white/20">
-                           <Navigation size={10} className="fill-white" />
-                           {item.distance.toFixed(1)} km away
-                        </div>
-                      )}
+                                 <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    loading="lazy"
+                                    fetchPriority="low"
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                 />
 
                       <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-[13px] font-black px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
                          {item.price}<span className="text-slate-400 font-bold">/day</span>
                       </div>
                    </div>
-                   <div className="flex flex-col px-1 pb-2">
-                      <div className="flex justify-between items-start mb-1">
-                         <h3 className="font-bold text-slate-800 text-[17px] leading-tight group-hover:text-brand transition-colors truncate pr-4">{item.name}</h3>
-                         <div className="flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50">
-                            <Star size={10} fill="currentColor" /> {item.trustScore}
-                         </div>
-                      </div>
-                      <p className="text-[12px] text-slate-400 font-medium flex items-center gap-1 mb-4">
-                        By <span className="text-slate-600 font-bold">{item.owner}</span> • <span className="text-brand">Verified</span>
+                   <div className="flex flex-col gap-2 px-1 pb-2">
+                      <h3 className="font-bold text-slate-800 text-[17px] leading-tight group-hover:text-brand transition-colors truncate">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm font-semibold text-slate-700">Rent per day: {item.price}/day</p>
+                      <p className="text-sm font-semibold text-slate-700">Deposit: {item.deposit}</p>
+                      <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                        <MapPin size={14} className="text-brand" />
+                        {itemLocationLabels[item.id] || 'Resolving exact location...'}
                       </p>
-                      <div className="flex items-center justify-between mt-auto">
-                         <div className="flex items-center gap-1.5 text-[11px] font-black text-brand bg-brand/5 px-4 py-2 rounded-2xl border border-brand/10">
-                            <CheckCircle2 size={14} />
-                            Deposit: {item.deposit}
-                         </div>
-                         <button className="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-brand hover:-rotate-12 transition-all shadow-lg shadow-slate-900/10">
-                            <PlusIcon size={20} />
-                         </button>
-                      </div>
+                      <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Star size={14} className="text-emerald-600" fill="currentColor" />
+                        Customer trust score: {item.trustScore}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-700">By seller: {item.owner}</p>
                    </div>
                 </div>
               ))}
            </div>
+           )}
         </div>
 
       </div>
     </div>
   );
-}
-
-function PlusIcon({ size, className }: { size: number, className?: string }) {
-   return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-         <line x1="12" y1="5" x2="12" y2="19"></line>
-         <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
-   )
 }

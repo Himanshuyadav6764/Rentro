@@ -1,18 +1,26 @@
-import { NextResponse } from 'next/server';
-import { v2 as cloudinary } from 'cloudinary';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { NextResponse } from 'next/server';
+import { v2 as cloudinary } from 'cloudinary';
+import { getStorage } from 'firebase-admin/storage';
+import { getFirebaseAdminAuth } from '@/lib/firebase-admin';
 
-const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+export const runtime = 'nodejs';
 
-const MIME_EXTENSION_MAP: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-  'image/avif': 'avif',
-};
+function isPlaceholder(value?: string) {
+  if (!value) {
+    return true;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.startsWith('your-') ||
+    normalized.includes('example') ||
+    normalized.includes('...') ||
+    normalized.includes('<')
+  );
+}
 
 function isCloudinaryConfigured() {
   if (process.env.CLOUDINARY_URL) {
@@ -24,6 +32,55 @@ function isCloudinaryConfigured() {
       process.env.CLOUDINARY_API_KEY &&
       process.env.CLOUDINARY_API_SECRET
   );
+}
+
+function getFirebaseStorageBucket() {
+  const bucket =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+
+  if (!bucket || isPlaceholder(bucket)) {
+    return null;
+  }
+
+  return bucket.replace(/^gs:\/\//, '');
+}
+
+function isFirebaseStorageConfigured() {
+  const bucket = getFirebaseStorageBucket();
+  if (!bucket) {
+    return false;
+  }
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (serviceAccountJson && !isPlaceholder(serviceAccountJson)) {
+    return true;
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  return (
+    !isPlaceholder(projectId) &&
+    !isPlaceholder(clientEmail) &&
+    !isPlaceholder(privateKey)
+  );
+}
+
+function getFileExtension(fileName: string, mimeType: string) {
+  const extFromName = path.extname(fileName || '').trim();
+  if (extFromName) {
+    return extFromName.toLowerCase();
+  }
+
+  if (mimeType === 'image/png') {
+    return '.png';
+  }
+  if (mimeType === 'image/webp') {
+    return '.webp';
+  }
+  return '.jpg';
 }
 
 function configureCloudinary() {
@@ -44,18 +101,18 @@ function configureCloudinary() {
 }
 
 async function uploadBufferToCloudinary(buffer: Buffer) {
-  return new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
+  return new Promise<{ secure_url: string }>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: 'rentro_uploads',
         resource_type: 'image',
       },
       (error, result) => {
-        if (error || !result?.secure_url || !result.public_id) {
+        if (error || !result?.secure_url) {
           reject(error || new Error('Cloudinary upload failed'));
           return;
         }
-        resolve({ secure_url: result.secure_url, public_id: result.public_id });
+        resolve({ secure_url: result.secure_url });
       }
     );
 
@@ -63,21 +120,52 @@ async function uploadBufferToCloudinary(buffer: Buffer) {
   });
 }
 
-async function uploadBufferLocally(buffer: Buffer, mimeType: string) {
-  const extension = MIME_EXTENSION_MAP[mimeType] || 'jpg';
-  const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
-  const relativeDir = path.join('uploads', 'rentro_uploads');
-  const absoluteDir = path.join(process.cwd(), 'public', relativeDir);
-  const absoluteFilePath = path.join(absoluteDir, fileName);
+async function uploadBufferToFirebaseStorage(
+  buffer: Buffer,
+  originalName: string,
+  mimeType: string,
+) {
+  const bucketName = getFirebaseStorageBucket();
+  if (!bucketName) {
+    throw new Error('Firebase Storage bucket not configured');
+  }
 
-  await mkdir(absoluteDir, { recursive: true });
-  await writeFile(absoluteFilePath, buffer);
+  const adminApp = getFirebaseAdminAuth().app;
+  const bucket = getStorage(adminApp).bucket(bucketName);
+  const ext = getFileExtension(originalName, mimeType);
+  const objectPath = `rentro_uploads/${Date.now()}-${randomUUID()}${ext}`;
+  const file = bucket.file(objectPath);
 
-  const relativeUrl = `/${relativeDir.replaceAll('\\', '/')}/${fileName}`;
-  return {
-    url: relativeUrl,
-    publicId: `local:${fileName}`,
-  };
+  await file.save(buffer, {
+    contentType: mimeType,
+    resumable: false,
+    metadata: {
+      cacheControl: 'public, max-age=31536000',
+    },
+  });
+
+  const [signedUrl] = await file.getSignedUrl({
+    action: 'read',
+    expires: '2500-01-01',
+  });
+
+  return signedUrl;
+}
+
+async function uploadBufferLocally(
+  buffer: Buffer,
+  originalName: string,
+  mimeType: string,
+) {
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+  await fs.mkdir(uploadsDir, { recursive: true });
+
+  const ext = getFileExtension(originalName, mimeType);
+  const fileName = `${Date.now()}-${randomUUID()}${ext}`;
+  const fullPath = path.join(uploadsDir, fileName);
+
+  await fs.writeFile(fullPath, buffer);
+  return `/uploads/${fileName}`;
 }
 
 export async function POST(request: Request) {
@@ -89,38 +177,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return NextResponse.json(
-        { error: 'Image size must be 8MB or smaller' },
-        { status: 400 }
-      );
-    }
-
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    if (!isCloudinaryConfigured()) {
-      const fallback = await uploadBufferLocally(buffer, file.type);
-      return NextResponse.json(fallback, { status: 200 });
+    if (isCloudinaryConfigured()) {
+      try {
+        configureCloudinary();
+        const res = await uploadBufferToCloudinary(buffer);
+        return NextResponse.json({ url: res.secure_url, storage: 'cloudinary' }, { status: 200 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Cloudinary upload failed';
+        console.warn('Cloudinary upload failed, trying fallback:', message);
+      }
     }
 
-    configureCloudinary();
+    if (isFirebaseStorageConfigured()) {
+      try {
+        const firebaseUrl = await uploadBufferToFirebaseStorage(
+          buffer,
+          file.name,
+          file.type || 'image/jpeg',
+        );
+        return NextResponse.json({ url: firebaseUrl, storage: 'firebase-storage' }, { status: 200 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Firebase storage upload failed';
+        console.warn('Firebase upload failed, trying local fallback:', message);
+      }
+    }
 
-    try {
-      const res = await uploadBufferToCloudinary(buffer);
-
+    if (process.env.NODE_ENV === 'production') {
       return NextResponse.json(
-        { url: res.secure_url, publicId: res.public_id },
-        { status: 200 }
+        {
+          error:
+            'Upload provider is not configured. Configure Cloudinary or Firebase Storage admin credentials.',
+        },
+        { status: 500 },
       );
-    } catch {
-      const fallback = await uploadBufferLocally(buffer, file.type);
-      return NextResponse.json(fallback, { status: 200 });
     }
+
+    const localUrl = await uploadBufferLocally(
+      buffer,
+      file.name,
+      file.type || 'image/jpeg',
+    );
+
+    return NextResponse.json({ url: localUrl, storage: 'local' }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Image upload failed';
     console.error('Upload error:', message);

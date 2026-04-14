@@ -1,21 +1,23 @@
 import { Schema, model, models } from "mongoose";
 
 export interface IOtpCode {
-  phone: string;
+  email: string;
   otpHash: string;
   expiresAt: Date;
   attempts: number;
-  verifiedAt?: Date;
+  consumedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const OtpCodeSchema = new Schema<IOtpCode>(
   {
-    phone: {
+    email: {
       type: String,
       required: true,
-      index: true,
+      lowercase: true,
+      trim: true,
+      unique: true,
     },
     otpHash: {
       type: String,
@@ -30,10 +32,12 @@ const OtpCodeSchema = new Schema<IOtpCode>(
       type: Number,
       default: 0,
     },
-    verifiedAt: Date,
+    consumedAt: Date,
   },
   { timestamps: true },
 );
+
+OtpCodeSchema.index({ email: 1 }, { unique: true });
 
 const OtpCode = models.OtpCode || model<IOtpCode>("OtpCode", OtpCodeSchema);
 

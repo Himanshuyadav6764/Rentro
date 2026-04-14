@@ -1,28 +1,22 @@
 import { Schema, model, models } from "mongoose";
 
-export type AuthProvider = "phone" | "google";
+export type AuthProvider = "phone" | "google" | "email";
 
 export interface IUser {
-  phone: string;
   name: string;
   email?: string;
-  googleId?: string;
-  avatarUrl?: string;
+  phone?: string;
+  image?: string;
   providers: AuthProvider[];
   trustScore: number;
   riskScore: number;
+  lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const UserSchema = new Schema<IUser>(
   {
-    phone: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
     name: {
       type: String,
       required: true,
@@ -32,17 +26,16 @@ const UserSchema = new Schema<IUser>(
       type: String,
       trim: true,
       lowercase: true,
-      sparse: true,
     },
-    googleId: {
+    phone: {
       type: String,
-      sparse: true,
+      trim: true,
     },
-    avatarUrl: String,
+    image: String,
     providers: {
       type: [String],
-      enum: ["phone", "google"],
-      default: ["phone"],
+      enum: ["phone", "google", "email"],
+      default: [],
     },
     trustScore: {
       type: Number,
@@ -56,9 +49,13 @@ const UserSchema = new Schema<IUser>(
       min: 0,
       max: 100,
     },
+    lastLoginAt: Date,
   },
   { timestamps: true },
 );
+
+UserSchema.index({ email: 1 }, { unique: true, sparse: true });
+UserSchema.index({ phone: 1 }, { unique: true, sparse: true });
 
 const User = models.User || model<IUser>("User", UserSchema);
 
