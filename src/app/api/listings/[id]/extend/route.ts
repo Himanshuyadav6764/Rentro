@@ -9,6 +9,10 @@ const bodySchema = z.object({
   extraDays: z.number().int().min(1).max(30),
 });
 
+function isObjectId(value: string) {
+  return /^[a-fA-F0-9]{24}$/.test(value);
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
@@ -21,7 +25,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404 });
     }
 
-    const owner = item.owner_id ? await User.findById(item.owner_id) : null;
+    const owner = item.owner_id && isObjectId(item.owner_id) ? await User.findById(item.owner_id) : null;
     const trustScore = owner?.trustScore ?? 60;
     const riskScore = owner?.riskScore ?? 40;
 

@@ -10,7 +10,12 @@ import {
   Star,
   Check,
   X,
-  Camera
+  Camera,
+  LogOut,
+  HelpCircle,
+  Settings,
+  Globe,
+  ChevronRight
 } from 'lucide-react';
 import Image from 'next/image';
 import { getDownloadURL, ref, uploadBytes, getStorage } from 'firebase/storage';
@@ -24,6 +29,7 @@ interface ProfileViewProps {
     image?: string;
     providers?: string[];
   } | null;
+  onLogout?: () => void;
   onProfileUpdated?: (nextUser: {
     name?: string;
     email?: string;
@@ -100,8 +106,9 @@ function getPrimaryProvider(providers?: string[]): "google" | "email" | "phone" 
   return "unknown";
 }
 
-export default function ProfileView({ currentUser, onProfileUpdated }: ProfileViewProps) {
+export default function ProfileView({ currentUser, onProfileUpdated, onLogout }: ProfileViewProps) {
   const [isEditing, setIsEditing] = React.useState(false);
+  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = React.useState(false);
   const [profile, setProfile] = React.useState<EditableProfile>(() =>
     toEditableProfile(currentUser),
   );
@@ -625,7 +632,7 @@ export default function ProfileView({ currentUser, onProfileUpdated }: ProfileVi
       </div>
 
       {/* AI Trust Section */}
-      <div className="px-6 mb-12">
+      <div className="px-6 mb-8">
         <h4 className="text-[14px] font-bold text-slate-800 mb-4 px-1">AI Trust & Behavior</h4>
         <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_20px_rgba(0,0,0,0.04)] border border-slate-100">
           <div className="flex items-center gap-3 mb-4">
@@ -656,6 +663,38 @@ export default function ProfileView({ currentUser, onProfileUpdated }: ProfileVi
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile-only More Options */}
+      <div className="px-6 mb-10 md:hidden">
+        <button
+          onClick={() => setIsMoreOptionsOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between bg-white border border-slate-100 rounded-2xl px-5 py-4 shadow-[0_4px_10px_rgba(0,0,0,0.02)]"
+        >
+          <span className="text-[15px] font-black text-slate-700 uppercase tracking-widest">More Options</span>
+          <ChevronRight
+            size={18}
+            className={`text-slate-400 transition-transform ${isMoreOptionsOpen ? 'rotate-90' : ''}`}
+          />
+        </button>
+
+        {isMoreOptionsOpen && (
+          <div className="mt-3 space-y-2">
+            <ProfileMenuButton icon={<HelpCircle size={20} />} label="Help" />
+            <ProfileMenuButton icon={<Settings size={20} />} label="Settings" />
+            <ProfileMenuButton icon={<Globe size={20} />} label="Language" showArrow={false} showBadge />
+
+            <div className="pt-4 mt-4 border-t border-slate-100">
+              <button
+                onClick={() => onLogout?.()}
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-2xl hover:bg-rose-50 transition-all text-rose-500 group"
+              >
+                <LogOut size={20} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[15px] font-black uppercase tracking-widest">Logout</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {isCameraOpen ? (
@@ -717,6 +756,37 @@ function DetailCard({ icon, value, label }: { icon: React.ReactNode, value: stri
         <span className="text-[15px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors truncate">{value}</span>
       </div>
     </div>
+  );
+}
+
+function ProfileMenuButton({
+  icon,
+  label,
+  showArrow = true,
+  showBadge = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  showArrow?: boolean;
+  showBadge?: boolean;
+}) {
+  return (
+    <button className="flex items-center justify-between w-full px-5 py-4 rounded-2xl bg-white border border-slate-100 hover:bg-slate-50 transition-all group">
+      <div className="flex items-center gap-4 text-slate-700">
+        <div className="text-slate-500 group-hover:text-brand transition-colors">{icon}</div>
+        <span className="text-[15px] font-medium">{label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {showBadge && (
+          <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
+        )}
+        {showArrow ? (
+          <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+        ) : (
+          <ChevronRight size={18} className="text-slate-500 rotate-90" />
+        )}
+      </div>
+    </button>
   );
 }
 

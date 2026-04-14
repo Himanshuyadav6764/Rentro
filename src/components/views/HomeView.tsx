@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import Image from 'next/image';
 import { 
   ChevronRight, 
   CheckCircle2, 
@@ -257,11 +258,11 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
                            onClick={() => onSelectItem?.(item.id)}
                   className="group bg-white rounded-[2.5rem] border border-slate-100 p-4 flex flex-col gap-4 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 cursor-pointer overflow-hidden relative active:scale-[0.98]">
                    <div className="w-full h-44 bg-slate-50 rounded-[2rem] overflow-hidden relative shrink-0 border border-slate-50 shadow-inner">
-                                 <img
-                                                      src={item.image_urls?.[0] || 'https://images.unsplash.com/photo-1587614382346-4ec70e388b28?auto=format&fit=crop&q=80&w=1000'}
-                                                      alt={item.title}
-                                    loading="lazy"
-                                    fetchPriority="low"
+                                 <Image
+                                    src={item.image_urls?.[0] || 'https://images.unsplash.com/photo-1587614382346-4ec70e388b28?auto=format&fit=crop&q=80&w=1000'}
+                                    alt={item.title}
+                                    fill
+                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                  />
 

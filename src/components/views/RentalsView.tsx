@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Menu, MessageSquare } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import type { ListingSubmissionSummary } from '@/components/PricingAvailabilityStep';
 
-type ListingsStatus = 'pending' | 'active' | 'completed' | 'cancelled' | 'pending_return' | 'overdue';
-type RentalsStatus = 'on_time' | 'returning_soon' | 'overdue' | 'completed';
+type ListingsStatus = 'pending' | 'active' | 'completed' | 'cancelled' | 'pending_return' | 'overdue' | 'return_requested' | 'dispute';
+type RentalsStatus = 'on_time' | 'returning_soon' | 'overdue' | 'completed' | 'return_requested' | 'dispute';
 type ActionPanel = 'extend' | 'return' | 'issue';
 type IssueType = 'damage' | 'fraud' | 'late_return' | 'other';
 type Severity = 'low' | 'medium' | 'high';
@@ -62,6 +63,7 @@ type RentalsViewProps = {
   createdListings?: ListingSubmissionSummary[];
   onOpenOwnerChat?: (ownerName: string) => void;
   searchQuery?: string;
+  initialTab?: RentalsTab;
 };
 
 const EMPTY_CREATED_LISTINGS: ListingSubmissionSummary[] = [];
@@ -203,6 +205,8 @@ const listingStatusStyles: Record<ListingsStatus, string> = {
   cancelled: 'bg-slate-200 text-slate-700',
   pending_return: 'bg-amber-100 text-amber-700',
   overdue: 'bg-rose-100 text-rose-700',
+  return_requested: 'bg-amber-100 text-amber-700',
+  dispute: 'bg-rose-100 text-rose-700',
 };
 
 const listingStatusLabel: Record<ListingsStatus, string> = {
@@ -212,6 +216,8 @@ const listingStatusLabel: Record<ListingsStatus, string> = {
   cancelled: 'Cancelled',
   pending_return: 'Pending Return',
   overdue: 'Overdue',
+  return_requested: 'Pending Return',
+  dispute: 'Dispute',
 };
 
 const rentalStatusStyles: Record<RentalsStatus, string> = {
@@ -219,6 +225,8 @@ const rentalStatusStyles: Record<RentalsStatus, string> = {
   returning_soon: 'bg-amber-100 text-amber-700',
   overdue: 'bg-rose-100 text-rose-700',
   completed: 'bg-blue-100 text-blue-700',
+  return_requested: 'bg-amber-100 text-amber-700',
+  dispute: 'bg-rose-100 text-rose-700',
 };
 
 const rentalStatusLabel: Record<RentalsStatus, string> = {
@@ -226,6 +234,8 @@ const rentalStatusLabel: Record<RentalsStatus, string> = {
   returning_soon: 'Returning Soon',
   overdue: 'Overdue',
   completed: 'Completed',
+  return_requested: 'Pending Return',
+  dispute: 'Dispute',
 };
 
 type RentalsTab = 'my_listings' | 'my_rentals' | 'requests' | 'history';
@@ -255,17 +265,14 @@ function defaultIssueDraft(): IssueDraft {
   };
 }
 
-function getListingChatTargetName(listing: ListingItem) {
-  const renter = listing.rentedBy.trim();
-  if (!renter || renter.toLowerCase() === 'awaiting requests') {
-    return `${listing.itemName} Chat`;
-  }
-  return renter;
+function isReturnRequestedStatus(status: ListingsStatus) {
+  return status === 'pending_return' || status === 'return_requested';
 }
 
-export default function RentalsView({ createdListings, onOpenOwnerChat, searchQuery = '' }: RentalsViewProps) {
+export default function RentalsView({ createdListings, onOpenOwnerChat, searchQuery = '', initialTab = 'my_listings' }: RentalsViewProps) {
+  const router = useRouter();
   const stableCreatedListings = createdListings ?? EMPTY_CREATED_LISTINGS;
-  const [activeTab, setActiveTab] = useState<RentalsTab>('my_listings');
+  const [activeTab, setActiveTab] = useState<RentalsTab>(initialTab);
   const [listings, setListings] = useState<ListingItem[]>(seededListingsData);
   const [myRentals, setMyRentals] = useState<RentalItem[]>(myRentalsData);
   const [requests, setRequests] = useState<RequestItem[]>(seededRequestsData);
@@ -282,7 +289,15 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
   const [extendDaysById, setExtendDaysById] = useState<Record<string, string>>({});
   const [issueDraftById, setIssueDraftById] = useState<Record<string, IssueDraft>>({});
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const requestsCount = requests.length;
+  const returnRequestCount = useMemo(
+    () => listings.filter((listing) => isReturnRequestedStatus(listing.status)).length,
+    [listings]
+  );
 
   const createdListingCards = useMemo<ListingItem[]>(() => {
     return stableCreatedListings.map((listing, index) => ({
@@ -304,8 +319,8 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
     setIsLoadingListings(true);
     try {
       const [listingsRes, remindersRes] = await Promise.all([
-        fetch('/api/listings'),
-        fetch('/api/listings/reminders'),
+        fetch('/api/listings', { cache: 'no-store' }),
+        fetch('/api/listings/reminders', { cache: 'no-store' }),
       ]);
 
       const nextListings: ListingItem[] = [];
@@ -435,7 +450,7 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
       const statusHit =
         filterMode === 'all' ||
         (filterMode === 'pending' && item.status === 'pending') ||
-        (filterMode === 'active' && (item.status === 'active' || item.status === 'pending_return')) ||
+        (filterMode === 'active' && (item.status === 'active' || isReturnRequestedStatus(item.status))) ||
         (filterMode === 'overdue' && item.status === 'overdue') ||
         (filterMode === 'completed' && item.status === 'completed');
 
@@ -458,7 +473,7 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
 
       const statusHit =
         filterMode === 'all' ||
-        (filterMode === 'pending' && item.status === 'returning_soon') ||
+        (filterMode === 'pending' && (item.status === 'returning_soon' || item.status === 'return_requested')) ||
         (filterMode === 'active' && item.status === 'on_time') ||
         (filterMode === 'overdue' && item.status === 'overdue') ||
         (filterMode === 'completed' && item.status === 'completed');
@@ -613,13 +628,19 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
 
       updateListing(listing.id, (current) => ({
         ...current,
-        status: payload.listing?.status ?? (issue.issueType === 'fraud' ? 'cancelled' : current.status),
+        status:
+          payload.listing?.status ??
+          (isReturnRequestedStatus(current.status)
+            ? 'dispute'
+            : issue.issueType === 'fraud'
+              ? 'cancelled'
+              : current.status),
       }));
       setToast('Issue reported successfully.');
     } else {
       updateListing(listing.id, (current) => ({
         ...current,
-        status: issue.issueType === 'fraud' ? 'cancelled' : current.status,
+        status: isReturnRequestedStatus(current.status) ? 'dispute' : issue.issueType === 'fraud' ? 'cancelled' : current.status,
       }));
       setToast('Issue reported successfully.');
     }
@@ -653,9 +674,35 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
     setOpenRentalPanel((prev) => ({ ...prev, [rental.id]: undefined }));
   };
 
-  const submitRentalReturn = (rental: RentalItem) => {
-    setMyRentals((prev) => prev.map((item) => (item.id === rental.id ? { ...item, status: 'completed' } : item)));
-    setToast('Rental marked as completed.');
+  const submitRentalReturn = async (rental: RentalItem) => {
+    const linkedListing = listings.find(
+      (listing) => listing.itemName.trim().toLowerCase() === rental.itemName.trim().toLowerCase()
+    );
+
+    if (linkedListing && isDbId(linkedListing.id)) {
+      try {
+        const response = await fetch(`/api/listings/${linkedListing.id}/request-return`, { method: 'POST' });
+        const payload = (await response.json()) as { error?: string; listing?: { status?: ListingsStatus } };
+
+        if (!response.ok) {
+          setToast(payload.error || 'Unable to send return request');
+          return;
+        }
+
+        updateListing(linkedListing.id, (current) => ({
+          ...current,
+          status: payload.listing?.status || 'return_requested',
+        }));
+      } catch {
+        setToast('Unable to send return request');
+        return;
+      }
+    } else if (linkedListing) {
+      updateListing(linkedListing.id, (current) => ({ ...current, status: 'return_requested' }));
+    }
+
+    setMyRentals((prev) => prev.map((item) => (item.id === rental.id ? { ...item, status: 'return_requested' } : item)));
+    setToast('Return request sent to owner.');
     setOpenRentalPanel((prev) => ({ ...prev, [rental.id]: undefined }));
   };
 
@@ -777,6 +824,68 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
     })();
   };
 
+  const resolveUserIdByName = useCallback(async (name: string) => {
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+
+    try {
+      const response = await fetch('/api/messages/chats', { cache: 'no-store' });
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        chats?: Array<{ userId: string; name: string }>;
+      };
+
+      if (!payload.success || !payload.chats) {
+        return null;
+      }
+
+      const exact = payload.chats.find((chat) => chat.name.trim().toLowerCase() === normalized);
+      return exact?.userId || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const openDirectChat = useCallback(async (counterpartName: string, sourceTab: RentalsTab, itemName?: string) => {
+    const cleanName = counterpartName.trim();
+    if (!cleanName || cleanName.toLowerCase() === 'awaiting requests') {
+      setToast('No user available to chat yet.');
+      return;
+    }
+
+    const userId = await resolveUserIdByName(cleanName);
+
+    const backToByTab: Record<RentalsTab, string> = {
+      my_listings: '/?tab=rentals&rentalsTab=my_listings',
+      my_rentals: '/?tab=rentals&rentalsTab=my_rentals',
+      requests: '/?tab=rentals&rentalsTab=requests',
+      history: '/?tab=rentals&rentalsTab=history',
+    };
+
+    const params = new URLSearchParams();
+    params.set('name', cleanName);
+    params.set('from', sourceTab);
+    params.set('backTo', backToByTab[sourceTab]);
+    if (itemName?.trim()) {
+      params.set('itemName', itemName.trim());
+    }
+
+    if (userId) {
+      params.set('userId', userId);
+      router.push(`/chat?${params.toString()}`);
+      return;
+    }
+
+    router.push(`/chat?${params.toString()}`);
+    onOpenOwnerChat?.(cleanName);
+  }, [onOpenOwnerChat, resolveUserIdByName, router]);
+
   return (
     <div className="w-full bg-[#f8fafe] flex flex-col font-sans max-w-6xl mx-auto pb-24 h-full overflow-y-auto hide-scrollbar">
       {toast && (
@@ -852,13 +961,22 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
               </div>
             )}
 
+            {returnRequestCount > 0 && (
+              <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
+                {returnRequestCount} return request{returnRequestCount > 1 ? 's' : ''} awaiting your approval.
+              </div>
+            )}
+
             {isLoadingListings && <p className="text-sm text-slate-500 mb-3">Refreshing latest listings...</p>}
 
             <div className="space-y-4">
               {filteredListings.length === 0 && (
                 <div className="rounded-xl bg-white border border-slate-200 p-6 text-sm text-slate-500">No listings match current search/filter.</div>
               )}
-              {filteredListings.map((item) => (
+              {filteredListings.map((item) => {
+                const returnApprovalPending = isReturnRequestedStatus(item.status);
+
+                return (
                 <article key={item.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -877,8 +995,8 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
 
                     <div className="flex flex-wrap gap-2 md:max-w-[360px] md:justify-end">
                       <button onClick={() => toggleListingPanel(item, 'extend')} className="bg-[#1b52d6] text-white px-3 py-1.5 rounded font-medium text-[13px]">Extend</button>
-                      <button onClick={() => onOpenOwnerChat?.(getListingChatTargetName(item))} className="bg-[#2563eb] text-white px-3 py-1.5 rounded font-medium text-[13px]">Message</button>
-                      <button onClick={() => toggleListingPanel(item, 'return')} className="bg-[#16a34a] text-white px-3 py-1.5 rounded font-medium text-[13px]">Mark as Returned</button>
+                      <button onClick={() => void openDirectChat(item.rentedBy, 'my_listings', item.itemName)} className="bg-[#2563eb] text-white px-3 py-1.5 rounded font-medium text-[13px]">Message</button>
+                      <button onClick={() => toggleListingPanel(item, 'return')} className="bg-[#16a34a] text-white px-3 py-1.5 rounded font-medium text-[13px]">{returnApprovalPending ? 'Accept Return' : 'Mark as Returned'}</button>
                       <button onClick={() => toggleListingPanel(item, 'issue')} className="bg-[#ef4444] text-white px-3 py-1.5 rounded font-medium text-[13px]">Report Issue</button>
                     </div>
                   </div>
@@ -896,9 +1014,9 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
 
                   {openListingPanel[item.id] === 'return' && (
                     <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                      <p className="text-sm text-slate-700 mb-2">Confirm return for this listing?</p>
+                      <p className="text-sm text-slate-700 mb-2">{returnApprovalPending ? 'Accept renter return request for this listing?' : 'Confirm return for this listing?'}</p>
                       <div className="flex gap-2">
-                        <button onClick={() => void submitListingReturn(item)} className="rounded-md bg-[#16a34a] px-3 py-2 text-sm font-semibold text-white">Confirm</button>
+                        <button onClick={() => void submitListingReturn(item)} className="rounded-md bg-[#16a34a] px-3 py-2 text-sm font-semibold text-white">{returnApprovalPending ? 'Accept Return' : 'Confirm'}</button>
                         <button onClick={() => setOpenListingPanel((prev) => ({ ...prev, [item.id]: undefined }))} className="rounded-md border border-slate-300 px-3 py-2 text-sm">Cancel</button>
                       </div>
                     </div>
@@ -928,7 +1046,8 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
                     </div>
                   )}
                 </article>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -958,8 +1077,14 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
 
                       <div className="flex flex-wrap gap-2 md:max-w-[360px] md:justify-end">
                         <button onClick={() => toggleRentalPanel(item.id, 'extend')} className="bg-[#1b52d6] text-white px-3 py-1.5 rounded font-medium text-[13px]">Extend</button>
-                        <button onClick={() => onOpenOwnerChat?.(item.ownerName)} className="bg-[#2563eb] text-white px-3 py-1.5 rounded font-medium text-[13px]">Message Owner</button>
-                        <button onClick={() => toggleRentalPanel(item.id, 'return')} className="bg-[#16a34a] text-white px-3 py-1.5 rounded font-medium text-[13px]">Return Now</button>
+                        <button onClick={() => void openDirectChat(item.ownerName, 'my_rentals', item.itemName)} className="bg-[#2563eb] text-white px-3 py-1.5 rounded font-medium text-[13px]">Message Owner</button>
+                        <button
+                          onClick={() => toggleRentalPanel(item.id, 'return')}
+                          disabled={item.status === 'completed' || item.status === 'return_requested' || item.status === 'dispute'}
+                          className={`px-3 py-1.5 rounded font-medium text-[13px] ${item.status === 'completed' || item.status === 'return_requested' || item.status === 'dispute' ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-[#16a34a] text-white'}`}
+                        >
+                          {item.status === 'return_requested' ? 'Return Requested' : 'Return Now'}
+                        </button>
                         <button onClick={() => toggleRentalPanel(item.id, 'issue')} className="bg-[#ef4444] text-white px-3 py-1.5 rounded font-medium text-[13px]">Raise Issue</button>
                       </div>
                     </div>
@@ -977,9 +1102,9 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
 
                     {openRentalPanel[item.id] === 'return' && (
                       <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                        <p className="text-sm text-slate-700 mb-2">Confirm return for this rental?</p>
+                        <p className="text-sm text-slate-700 mb-2">Send return request to owner?</p>
                         <div className="flex gap-2">
-                          <button onClick={() => submitRentalReturn(item)} className="rounded-md bg-[#16a34a] px-3 py-2 text-sm font-semibold text-white">Confirm</button>
+                          <button onClick={() => void submitRentalReturn(item)} className="rounded-md bg-[#16a34a] px-3 py-2 text-sm font-semibold text-white">Send Request</button>
                           <button onClick={() => toggleRentalPanel(item.id, 'return')} className="rounded-md border border-slate-300 px-3 py-2 text-sm">Cancel</button>
                         </div>
                       </div>
@@ -1032,7 +1157,7 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
                     <p className="text-sm font-semibold text-[#1c2b4c]">Offer: ₹ {request.offeredAmount}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => onOpenOwnerChat?.(request.requesterName)} className="rounded-md bg-[#2563eb] px-3 py-1.5 text-sm font-semibold text-white">Chat</button>
+                    <button onClick={() => void openDirectChat(request.requesterName, 'requests', request.itemName)} className="rounded-md bg-[#2563eb] px-3 py-1.5 text-sm font-semibold text-white">Chat</button>
                     <button onClick={() => acceptRequest(request)} className="rounded-md bg-[#16a34a] px-3 py-1.5 text-sm font-semibold text-white">Accept</button>
                     <button onClick={() => declineRequest(request.id)} className="rounded-md bg-[#ef4444] px-3 py-1.5 text-sm font-semibold text-white">Decline</button>
                   </div>

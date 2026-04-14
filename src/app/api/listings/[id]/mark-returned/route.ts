@@ -3,6 +3,11 @@ import Item from '@/models/Item';
 import User from '@/models/User';
 import { connectToDatabase } from '@/lib/db';
 import { clampScore, scoreImpactOnReturn } from '@/lib/trustEngine';
+import RentalHistory from '@/models/RentalHistory';
+
+function isObjectId(value: string) {
+  return /^[a-fA-F0-9]{24}$/.test(value);
+}
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -23,11 +28,20 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const impact = scoreImpactOnReturn({ isLate, daysLate });
 
     item.status = 'completed';
+    item.actual_return_date = now;
     item.late_returns_count = (item.late_returns_count || 0) + (isLate ? 1 : 0);
     item.behavior_notes = [...(item.behavior_notes || []), impact.behaviorNote].slice(-20);
     await item.save();
 
-    if (item.owner_id) {
+    await RentalHistory.create({
+      item_name: item.title,
+      counterpart: item.renter_name || 'Renter',
+      amount: item.earnings || (item.rent_price || 0) * (item.duration || 0),
+      completed_on: item.actual_return_date || new Date(),
+      role: 'owner',
+    });
+
+    if (item.owner_id && isObjectId(item.owner_id)) {
       const owner = await User.findById(item.owner_id);
       if (owner) {
         owner.trustScore = clampScore(owner.trustScore + impact.trustDelta);
