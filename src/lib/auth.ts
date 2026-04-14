@@ -4,7 +4,7 @@ import User from "@/models/User";
 import { verifyAuthToken } from "@/lib/jwt";
 import { connectToDatabase } from "@/lib/db";
 
-export const AUTH_COOKIE = "studentrental_token";
+export const AUTH_COOKIE = "rentro_token";
 
 const cookieBaseOptions = {
   httpOnly: true,
@@ -31,8 +31,7 @@ export async function clearAuthCookie(response: NextResponse) {
   });
 }
 
-export async function getCurrentUser() {
-  await connectToDatabase();
+export async function getCurrentJwtUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE)?.value;
 
@@ -42,11 +41,31 @@ export async function getCurrentUser() {
 
   try {
     const payload = verifyAuthToken(token);
-    const user = await User.findById(payload.sub).lean();
-    if (!user) {
-      return null;
+    try {
+      await connectToDatabase();
+      const user = await User.findById(payload.sub).lean();
+      if (user) {
+        return user;
+      }
+    } catch {
+      // In development, continue with token-only session fallback.
     }
-    return user;
+
+    if (process.env.NODE_ENV !== "production" && (payload.email || payload.phone)) {
+      return {
+        _id: { toString: () => payload.sub },
+        name: payload.name || "Rentro User",
+        email: payload.email,
+        phone: payload.phone,
+        image: undefined,
+        providers: [payload.provider],
+        trustScore: 50,
+        riskScore: 50,
+        createdAt: new Date(),
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }

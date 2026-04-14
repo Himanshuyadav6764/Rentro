@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import {
   Bell,
   BookOpen,
@@ -12,9 +12,10 @@ import {
   Search,
   User,
   X,
-  LogOut,
   Heart
 } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import HomeView from "@/components/views/HomeView";
 import ChatsView from "@/components/views/ChatsView";
 import RentalsView from "@/components/views/RentalsView";
@@ -24,6 +25,7 @@ import CreateListingModal from "@/components/CreateListingModal";
 import LoginView from "@/components/views/LoginView";
 import WishlistSidebar from "@/components/WishlistSidebar";
 import ProfileDropdown from "@/components/ProfileDropdown";
+import { getFirebaseClientAuth } from "@/lib/firebase-client";
 
 const MOCK_SUGGESTIONS = [
   { text: "Phone", category: "MOBILE PHONES" },
@@ -36,11 +38,25 @@ const MOCK_SUGGESTIONS = [
   { text: "Engineering Drafter", category: "ACADEMIC" },
 ];
 
+const EMAIL_LINK_KEY = "rentro_email_link";
+
+type CurrentUser = {
+  id?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  image?: string;
+  providers?: string[];
+};
+
 export default function AppHome() {
   const [activeTab, setActiveTab] = useState<"home" | "chats" | "rentals" | "profile">("home");
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [currentUserName, setCurrentUserName] = useState("Guest");
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
@@ -59,31 +75,225 @@ export default function AppHome() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const hydrateAuthState = useCallback(async () => {
+    setIsAuthChecking(true);
+
+    try {
+      const response = await fetch("/api/user/me", { cache: "no-store" });
+      const payload = (await response.json()) as {
+        success: boolean;
+        user?: CurrentUser;
+      };
+
+      if (response.ok && payload.success && payload.user) {
+        setIsLoggedIn(true);
+        setCurrentUserName(payload.user.name || "Rentro User");
+        setCurrentUser(payload.user);
+
+        const provider = payload.user.providers?.includes("google")
+          ? "google"
+          : payload.user.email
+            ? "email"
+            : "phone";
+
+        if (payload.user.email || payload.user.phone) {
+          localStorage.setItem(
+            "rentro_last_login",
+            JSON.stringify({
+              provider,
+              label: payload.user.name || payload.user.email || payload.user.phone,
+              email: payload.user.email,
+              phone: payload.user.phone,
+              name: payload.user.name,
+            }),
+          );
+        }
+      } else {
+        setIsLoggedIn(false);
+        setCurrentUserName("Guest");
+        setCurrentUser(null);
+      }
+    } catch {
+      setIsLoggedIn(false);
+      setCurrentUserName("Guest");
+      setCurrentUser(null);
+    } finally {
+      setIsAuthChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void hydrateAuthState();
+  }, [hydrateAuthState]);
+
+  const handleLoginSuccess = useCallback(async () => {
+    await hydrateAuthState();
+  }, [hydrateAuthState]);
+
+  const handleLogout = useCallback(async () => {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
+    await signOut({ redirect: false });
+
+    setIsLoggedIn(false);
+    setCurrentUserName("Guest");
+    setCurrentUser(null);
+    setIsProfileDropdownOpen(false);
+    setActiveTab("home");
+  }, []);
+
+  const handleProfileUpdated = useCallback(
+    (nextUser: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      image?: string;
+      providers?: string[];
+    }) => {
+      setCurrentUser((prev) => {
+        const merged = {
+          ...(prev || {}),
+          ...nextUser,
+          providers: nextUser.providers || prev?.providers || [],
+        };
+
+        if (merged.name) {
+          setCurrentUserName(merged.name);
+        }
+
+        localStorage.setItem(
+          "rentro_last_login",
+          JSON.stringify({
+            provider: merged.providers?.includes("google")
+              ? "google"
+              : merged.email
+                ? "email"
+                : "phone",
+            label: merged.name || merged.email || merged.phone,
+            email: merged.email,
+            phone: merged.phone,
+            name: merged.name,
+          }),
+        );
+
+        return merged;
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function completeFirebaseEmailLinkLogin() {
+      try {
+        const auth = getFirebaseClientAuth();
+        const href = window.location.href;
+
+        if (!isSignInWithEmailLink(auth, href)) {
+          return;
+        }
+
+        const storedEmail = localStorage.getItem(EMAIL_LINK_KEY);
+        const promptedEmail = storedEmail
+          ? null
+          : window.prompt("Login email dobara enter karo")?.trim().toLowerCase();
+        const email = storedEmail || promptedEmail;
+
+        if (!email) {
+          return;
+        }
+
+        const credential = await signInWithEmailLink(auth, email, href);
+        const firebaseToken = await credential.user.getIdToken();
+
+        const response = await fetch("/api/auth/firebase-login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            firebaseToken,
+            provider: "email",
+            name: credential.user.displayName || undefined,
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          success: boolean;
+          message?: string;
+          user?: {
+            name?: string;
+            email?: string;
+          };
+        };
+
+        if (!response.ok || !payload.success) {
+          return;
+        }
+
+        localStorage.removeItem(EMAIL_LINK_KEY);
+        localStorage.setItem(
+          "rentro_last_login",
+          JSON.stringify({
+            provider: "email",
+            label: payload.user?.name || email,
+            email,
+            name: payload.user?.name,
+          }),
+        );
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        if (!cancelled) {
+          await hydrateAuthState();
+        }
+      } catch {
+        // Keep silent to avoid blocking home screen load.
+      }
+    }
+
+    void completeFirebaseEmailLinkLogin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrateAuthState]);
+
   const filteredSuggestions = MOCK_SUGGESTIONS.filter(item =>
     item.text.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const renderContent = () => {
+    if (isAuthChecking && activeTab !== "home") {
+      return (
+        <div className="h-full w-full grid place-items-center bg-white">
+          <p className="text-sm font-semibold text-slate-500">Checking secure session...</p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
       case "chats": 
         if (!isLoggedIn) {
-          return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
+          return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
         }
         return <ChatsView />;
       case "rentals": 
         if (!isLoggedIn) {
-          return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
+          return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
         }
         return <RentalsView />;
       case "profile": 
         if (!isLoggedIn) {
-          return <LoginView onLogin={() => setIsLoggedIn(true)} onClose={() => setActiveTab("home")} />;
+          return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
         }
         return (
           <ProfileView 
-            onOpenSellModal={() => setIsListingModalOpen(true)} 
-            onLogout={() => setIsLoggedIn(false)}
+            currentUser={currentUser}
+            onProfileUpdated={handleProfileUpdated}
           />
         );
       default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} />;
@@ -313,16 +523,12 @@ export default function AppHome() {
           <ProfileDropdown 
              isOpen={isProfileDropdownOpen} 
              onClose={() => setIsProfileDropdownOpen(false)} 
-             onLogout={() => {
-                setIsLoggedIn(false);
-                setIsProfileDropdownOpen(false);
-                setActiveTab("home");
-             }}
+             onLogout={() => void handleLogout()}
              onViewProfile={() => {
                 setActiveTab("profile");
                 setIsProfileDropdownOpen(false);
              }}
-             userName="Shekhar Kumar"
+             userName={currentUserName}
           />
         </div>
 
@@ -346,7 +552,7 @@ export default function AppHome() {
   );
 }
 
-function SidebarLink({ icon, label, isActive, onClick, badge }: { icon: any, label: string, isActive: boolean, onClick: () => void, badge?: number }) {
+function SidebarLink({ icon, label, isActive, onClick, badge }: { icon: ReactNode, label: string, isActive: boolean, onClick: () => void, badge?: number }) {
   return (
     <button
       onClick={onClick}
@@ -361,7 +567,7 @@ function SidebarLink({ icon, label, isActive, onClick, badge }: { icon: any, lab
   );
 }
 
-function MobileNavLink({ icon, active, onClick, badge }: { icon: any, active: boolean, onClick: () => void, badge?: number }) {
+function MobileNavLink({ icon, active, onClick, badge }: { icon: ReactNode, active: boolean, onClick: () => void, badge?: number }) {
   return (
     <button onClick={onClick} className={`p-3 rounded-xl relative transition-all ${active ? 'text-[#1b52d6] bg-blue-50 scale-110' : 'text-slate-400 opacity-60'}`}>
       {icon}

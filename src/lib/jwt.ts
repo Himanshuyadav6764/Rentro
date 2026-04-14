@@ -1,24 +1,29 @@
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not configured");
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+  return secret;
 }
 
 export type JwtPayload = {
   sub: string;
-  phone: string;
+  phone?: string;
+  email?: string;
   name?: string;
-  provider: "phone" | "google";
+  provider: "phone" | "email" | "google";
 };
 
 export function signAuthToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  const expiresIn = (process.env.JWT_EXPIRES_IN || "7d") as SignOptions["expiresIn"];
+
+  return jwt.sign(payload, getJwtSecret(), {
+    expiresIn,
   });
 }
 
 export function verifyAuthToken(token: string): JwtPayload {
-  return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  return jwt.verify(token, getJwtSecret()) as JwtPayload;
 }

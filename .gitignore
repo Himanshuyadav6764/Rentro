@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local runtime artifacts
+public/uploads/
+
+# mobile firebase secrets
+android/app/google-services.json

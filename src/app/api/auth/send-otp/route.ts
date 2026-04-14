@@ -1,52 +1,89 @@
-import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import OtpCode from "@/models/OtpCode";
-import { connectToDatabase } from "@/lib/db";
 
 const bodySchema = z.object({
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[1-9]\d{7,14}$/, "Phone number format is invalid"),
+  email: z.email("Please enter a valid email address").trim().toLowerCase(),
 });
 
-function hashOtp(otp: string): string {
-  return crypto.createHash("sha256").update(otp).digest("hex");
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) {
+    return true;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith("your-") || normalized.includes("example");
 }
 
-function generateOtp(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+function mapFirebaseSendError(code: string): string {
+  switch (code) {
+    case "CONFIGURATION_NOT_FOUND":
+      return "Firebase Authentication config missing hai. Console me Email link sign-in enable karo.";
+    case "OPERATION_NOT_ALLOWED":
+      return "Email link sign-in enabled nahi hai. Firebase Authentication me Email provider + Email link enable karo.";
+    case "INVALID_EMAIL":
+      return "Email address invalid hai.";
+    case "TOO_MANY_ATTEMPTS_TRY_LATER":
+      return "Too many attempts. Thodi der baad try karo.";
+    default:
+      return "Email link send nahi ho paya. Firebase Authentication setup verify karo.";
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const json = await request.json();
-    const { phone } = bodySchema.parse(json);
+    const { email } = bodySchema.parse(json);
 
-    await connectToDatabase();
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
-    const otp = generateOtp();
-    const otpHash = hashOtp(otp);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    if (isPlaceholder(apiKey) || isPlaceholder(authDomain)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Firebase client config missing hai. NEXT_PUBLIC_FIREBASE_API_KEY aur AUTH_DOMAIN set karo.",
+        },
+        { status: 503 },
+      );
+    }
 
-    await OtpCode.findOneAndUpdate(
-      { phone },
+    const origin = new URL(request.url).origin;
+
+    const firebaseResponse = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`,
       {
-        phone,
-        otpHash,
-        expiresAt,
-        attempts: 0,
-        verifiedAt: null,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestType: "EMAIL_SIGNIN",
+          email,
+          continueUrl: `${origin}/`,
+          canHandleCodeInApp: true,
+        }),
       },
-      { upsert: true, new: true },
     );
+
+    if (!firebaseResponse.ok) {
+      const errorPayload = (await firebaseResponse.json().catch(() => ({}))) as {
+        error?: { message?: string };
+      };
+
+      const firebaseCode = errorPayload.error?.message || "UNKNOWN";
+      return NextResponse.json(
+        {
+          success: false,
+          message: mapFirebaseSendError(firebaseCode),
+        },
+        { status: 400 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: "OTP sent successfully",
-      // Dev-only OTP echo for local testing while SMS gateway is not integrated.
-      devOtp: process.env.NODE_ENV === "development" ? otp : undefined,
+      message: "Sign-in link sent to your email",
+      resendAfterSeconds: 30,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
