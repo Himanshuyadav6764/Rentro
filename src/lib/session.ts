@@ -1,6 +1,8 @@
 import { getCurrentJwtUser } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
 import User from "@/models/User";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/nextAuth";
 
 type LeanUser = {
   _id: { toString: () => string };
@@ -30,16 +32,62 @@ export function serializeUser(user: LeanUser) {
 
 /**
  * Returns the authenticated user.
- * Uses the custom JWT cookie (set by /api/auth/firebase-login) as the
- * primary auth source. This is the only auth method the app actually uses
- * — NextAuth's SessionProvider has been removed.
+ * Supports both auth strategies currently used in the app:
+ * 1) custom JWT cookie (legacy OTP/Firebase flows)
+ * 2) NextAuth Google OAuth session cookie
  */
 export async function getAuthenticatedUser() {
-  // Primary: custom JWT cookie (Firebase popup → /api/auth/firebase-login)
+  // Legacy auth cookie flow
   const jwtUser = await getCurrentJwtUser();
   if (jwtUser) {
     return jwtUser;
   }
 
-  return null;
+  // NextAuth Google session flow
+  const session = await getServerSession(authOptions);
+  const sessionEmail = session?.user?.email?.toLowerCase();
+  if (!sessionEmail) {
+    return null;
+  }
+
+  try {
+    await connectToDatabase();
+
+    const dbUser = await User.findOneAndUpdate(
+      { email: sessionEmail },
+      {
+        $set: {
+          email: sessionEmail,
+          name: session.user?.name || sessionEmail.split("@")[0],
+          image: session.user?.image,
+          lastLoginAt: new Date(),
+        },
+        $setOnInsert: {
+          trustScore: 50,
+          riskScore: 50,
+        },
+        $addToSet: { providers: "google" },
+      },
+      { upsert: true, new: true },
+    ).lean();
+
+    if (dbUser) {
+      return dbUser;
+    }
+  } catch (error) {
+    console.error("[session] NextAuth user lookup failed:", error);
+  }
+
+  // Minimal fallback so user is treated as authenticated even during transient DB issues.
+  return {
+    _id: { toString: () => `google:${sessionEmail}` },
+    name: session.user?.name || "Rentro User",
+    email: sessionEmail,
+    phone: undefined,
+    image: session.user?.image,
+    providers: ["google"],
+    trustScore: 50,
+    riskScore: 50,
+    createdAt: new Date(),
+  };
 }

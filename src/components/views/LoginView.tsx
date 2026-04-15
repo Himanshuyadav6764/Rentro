@@ -478,14 +478,11 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
 
     try {
       const callbackUrl = `${window.location.origin}/home`;
-      const result = await signIn("google", {
+      await signIn("google", {
         callbackUrl,
-        redirect: false,
+        prompt: "select_account",
+        login_hint: lastLogin?.email,
       });
-
-      if (result?.error) {
-        throw new Error(result.error);
-      }
 
       persistLastLogin({
         provider: "google",
@@ -493,13 +490,6 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
         email: lastLogin?.email,
         name: lastLogin?.name,
       });
-
-      if (result?.url) {
-        window.location.href = result.url;
-        return;
-      }
-
-      window.location.href = callbackUrl;
     } catch (error) {
       setError(mapGoogleSignInError(error));
     } finally {
