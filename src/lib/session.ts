@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
 import { getCurrentJwtUser } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
-import { authOptions } from "@/lib/nextAuth";
 import User from "@/models/User";
 
 type LeanUser = {
@@ -30,38 +28,18 @@ export function serializeUser(user: LeanUser) {
   };
 }
 
+/**
+ * Returns the authenticated user.
+ * Uses the custom JWT cookie (set by /api/auth/firebase-login) as the
+ * primary auth source. This is the only auth method the app actually uses
+ * — NextAuth's SessionProvider has been removed.
+ */
 export async function getAuthenticatedUser() {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.email) {
-    try {
-      await connectToDatabase();
-
-      const nextAuthUser = await User.findOne({
-        email: session.user.email.toLowerCase(),
-      }).lean();
-
-      if (nextAuthUser) {
-        return nextAuthUser;
-      }
-    } catch (err) {
-      console.error("[session] DB error in getAuthenticatedUser:", err);
-
-      // Fallback: build a minimal user from the NextAuth session.
-      // The session is already authenticated via JWT, so the user is real.
-      return {
-        _id: { toString: () => session.user.id || `google:${session.user.email}` },
-        name: session.user.name || "Rentro User",
-        email: session.user.email,
-        phone: session.user.phone,
-        image: session.user.image,
-        providers: [session.user.provider || "google"],
-        trustScore: 50,
-        riskScore: 50,
-        createdAt: new Date(),
-      };
-    }
+  // Primary: custom JWT cookie (Firebase popup → /api/auth/firebase-login)
+  const jwtUser = await getCurrentJwtUser();
+  if (jwtUser) {
+    return jwtUser;
   }
 
-  const jwtUser = await getCurrentJwtUser();
-  return jwtUser;
+  return null;
 }
