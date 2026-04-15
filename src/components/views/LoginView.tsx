@@ -12,13 +12,12 @@ import {
 } from "lucide-react";
 import {
   ConfirmationResult,
-  GoogleAuthProvider,
   RecaptchaVerifier,
   isSignInWithEmailLink,
   signInWithEmailLink,
   signInWithPhoneNumber,
-  signInWithPopup,
 } from "firebase/auth";
+import { signIn } from "next-auth/react";
 import { getFirebaseClientAuth } from "@/lib/firebase-client";
 import { isPlaceholderValue } from "@/lib/envCheck";
 
@@ -161,33 +160,7 @@ function mapFirebasePhoneError(error: unknown): string {
   }
 }
 
-function mapFirebaseGoogleError(error: unknown): string {
-  const firebaseCode =
-    typeof error === "object" && error !== null && "code" in error
-      ? String((error as { code?: unknown }).code)
-      : "";
-
-  if (firebaseCode.startsWith("auth/")) {
-    switch (firebaseCode) {
-      case "auth/popup-closed-by-user":
-        return "Google popup close ho gaya. Dobara try karo.";
-      case "auth/cancelled-popup-request":
-        return "Google sign-in request cancel ho gayi. Dobara try karo.";
-      case "auth/popup-blocked":
-        return "Popup blocked hai. Browser me popups allow karo.";
-      case "auth/unauthorized-domain":
-        return "Ye domain Firebase me authorized nahi hai. Firebase Console > Authentication > Settings > Authorized domains me apna production domain (e.g. yourapp.vercel.app) add karo.";
-      case "auth/invalid-api-key":
-        return "Firebase API key invalid hai. NEXT_PUBLIC_FIREBASE_API_KEY check karo.";
-      case "auth/operation-not-allowed":
-        return "Google provider Firebase Auth me enabled nahi hai. Firebase Console > Authentication > Sign-in method me Google enable karo.";
-      case "auth/network-request-failed":
-        return "Network issue aaya. Internet check karke dobara try karo.";
-      default:
-        break;
-    }
-  }
-
+function mapGoogleSignInError(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }
@@ -504,29 +477,31 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
     resetNotice();
 
     try {
-      const auth = getFirebaseClientAuth();
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-
-      const credential = await signInWithPopup(auth, provider);
-      const firebaseToken = await credential.user.getIdToken();
-      const payload = await loginWithFirebaseToken({
-        firebaseToken,
-        provider: "google",
-        name: credential.user.displayName || undefined,
+      const callbackUrl = `${window.location.origin}/home`;
+      const result = await signIn("google", {
+        callbackUrl,
+        redirect: false,
       });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
 
       persistLastLogin({
         provider: "google",
-        label: payload.user?.name || payload.user?.email || "Google User",
-        email: payload.user?.email,
-        name: payload.user?.name,
+        label: lastLogin?.label || "Google User",
+        email: lastLogin?.email,
+        name: lastLogin?.name,
       });
 
-      onLogin();
-      onClose();
+      if (result?.url) {
+        window.location.href = result.url;
+        return;
+      }
+
+      window.location.href = callbackUrl;
     } catch (error) {
-      setError(mapFirebaseGoogleError(error));
+      setError(mapGoogleSignInError(error));
     } finally {
       setIsLoading(false);
     }
