@@ -45,10 +45,14 @@ export async function getAuthenticatedUser() {
 
   // NextAuth Google session flow
   const session = await getServerSession(authOptions);
-  const sessionEmail = session?.user?.email?.toLowerCase();
+  const sessionUser = session?.user;
+  const sessionEmail = sessionUser?.email?.toLowerCase();
   if (!sessionEmail) {
     return null;
   }
+
+  const sessionName = sessionUser?.name || sessionEmail.split("@")[0];
+  const sessionImage = sessionUser?.image;
 
   try {
     await connectToDatabase();
@@ -58,8 +62,8 @@ export async function getAuthenticatedUser() {
       {
         $set: {
           email: sessionEmail,
-          name: session.user?.name || sessionEmail.split("@")[0],
-          image: session.user?.image,
+          name: sessionName,
+          image: sessionImage,
           lastLoginAt: new Date(),
         },
         $setOnInsert: {
@@ -81,10 +85,10 @@ export async function getAuthenticatedUser() {
   // Minimal fallback so user is treated as authenticated even during transient DB issues.
   return {
     _id: { toString: () => `google:${sessionEmail}` },
-    name: session.user?.name || "Rentro User",
+    name: sessionName || "Rentro User",
     email: sessionEmail,
     phone: undefined,
-    image: session.user?.image,
+    image: sessionImage,
     providers: ["google"],
     trustScore: 50,
     riskScore: 50,
