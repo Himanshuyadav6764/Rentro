@@ -20,6 +20,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { getFirebaseClientAuth } from "@/lib/firebase-client";
+import { isPlaceholderValue } from "@/lib/envCheck";
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -119,18 +120,7 @@ function isEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function isPlaceholderEnv(value?: string): boolean {
-  if (!value) {
-    return true;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return (
-    normalized.startsWith("your-") ||
-    normalized.includes("example") ||
-    normalized.includes("project-id")
-  );
-}
+// isPlaceholderEnv replaced by imported isPlaceholderValue from envCheck.ts
 
 function mapFirebasePhoneError(error: unknown): string {
   const firebaseCode =
@@ -171,6 +161,40 @@ function mapFirebasePhoneError(error: unknown): string {
   }
 }
 
+function mapFirebaseGoogleError(error: unknown): string {
+  const firebaseCode =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+
+  if (firebaseCode.startsWith("auth/")) {
+    switch (firebaseCode) {
+      case "auth/popup-closed-by-user":
+        return "Google popup close ho gaya. Dobara try karo.";
+      case "auth/cancelled-popup-request":
+        return "Google sign-in request cancel ho gayi. Dobara try karo.";
+      case "auth/popup-blocked":
+        return "Popup blocked hai. Browser me popups allow karo.";
+      case "auth/unauthorized-domain":
+        return "Ye domain Firebase me authorized nahi hai. Firebase Console > Authentication > Settings > Authorized domains me apna production domain (e.g. yourapp.vercel.app) add karo.";
+      case "auth/invalid-api-key":
+        return "Firebase API key invalid hai. NEXT_PUBLIC_FIREBASE_API_KEY check karo.";
+      case "auth/operation-not-allowed":
+        return "Google provider Firebase Auth me enabled nahi hai. Firebase Console > Authentication > Sign-in method me Google enable karo.";
+      case "auth/network-request-failed":
+        return "Network issue aaya. Internet check karke dobara try karo.";
+      default:
+        break;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Google sign in failed. Please try again.";
+}
+
 export default function LoginView({ onLogin, onClose }: LoginViewProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [step, setStep] = useState<LoginStep>("welcome");
@@ -195,7 +219,7 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
       process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    ].some((value) => isPlaceholderEnv(value));
+    ].some((value) => isPlaceholderValue(value));
   }, []);
 
   useEffect(() => {
@@ -502,13 +526,7 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
       onLogin();
       onClose();
     } catch (error) {
-      setError("Google sign in failed. Please try again.");
-      if (typeof error === "object" && error !== null && "code" in error) {
-        const code = String((error as { code?: unknown }).code);
-        if (code === "auth/popup-closed-by-user") {
-          setError("Google popup close ho gaya. Dobara try karo.");
-        }
-      }
+      setError(mapFirebaseGoogleError(error));
     } finally {
       setIsLoading(false);
     }

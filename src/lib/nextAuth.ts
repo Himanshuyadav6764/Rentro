@@ -2,20 +2,22 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { connectToDatabase } from "@/lib/db";
 import User from "@/models/User";
-
-function isValidGoogleCredential(value: string | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return !normalized.startsWith("your-") && !normalized.includes("example");
-}
+import { isConfigured, warnMissingEnv, getMissingEnvVars } from "@/lib/envCheck";
 
 const googleEnabled = Boolean(
-  isValidGoogleCredential(process.env.GOOGLE_CLIENT_ID) &&
-    isValidGoogleCredential(process.env.GOOGLE_CLIENT_SECRET),
+  isConfigured(process.env.GOOGLE_CLIENT_ID) &&
+    isConfigured(process.env.GOOGLE_CLIENT_SECRET),
 );
+
+if (!googleEnabled) {
+  warnMissingEnv(
+    "NextAuth",
+    getMissingEnvVars({
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    }),
+  );
+}
 
 export const authOptions: NextAuthOptions = {
   providers: googleEnabled
@@ -62,10 +64,9 @@ export const authOptions: NextAuthOptions = {
           },
           { upsert: true },
         );
-      } catch {
-        if (process.env.NODE_ENV === "production") {
-          return false;
-        }
+      } catch (err) {
+        console.error("[NextAuth:signIn] DB error:", err);
+        return false;
       }
 
       return true;
@@ -95,8 +96,11 @@ export const authOptions: NextAuthOptions = {
             token.picture = dbUser.image;
             token.phone = dbUser.phone;
           }
-        } catch {
-          if (process.env.NODE_ENV !== "production") {
+        } catch (err) {
+          console.error("[NextAuth:jwt] DB error:", err);
+          // In production we still need a usable uid even if DB lookup fails
+          // temporarily. The user was already authenticated by Google OAuth.
+          if (!token.uid) {
             token.uid = `google:${token.email}`;
           }
         }

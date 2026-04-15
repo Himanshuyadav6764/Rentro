@@ -5,6 +5,7 @@ import {
   type App,
 } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { isPlaceholderValue } from "@/lib/envCheck";
 
 type ServiceAccount = {
   projectId: string;
@@ -12,21 +13,53 @@ type ServiceAccount = {
   privateKey: string;
 };
 
+/**
+ * Returns true when enough Firebase Admin credentials are available
+ * to initialise the SDK.
+ */
+export function isFirebaseAdminConfigured(): boolean {
+  // Option A: single JSON blob
+  const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (rawJson && rawJson.trim().length > 10) {
+    try {
+      const parsed = JSON.parse(rawJson);
+      if (parsed.project_id && parsed.client_email && parsed.private_key) {
+        return true;
+      }
+    } catch {
+      // Invalid JSON, fall through
+    }
+  }
+
+  // Option B: split vars
+  return (
+    !isPlaceholderValue(process.env.FIREBASE_PROJECT_ID) &&
+    !isPlaceholderValue(process.env.FIREBASE_CLIENT_EMAIL) &&
+    !isPlaceholderValue(process.env.FIREBASE_PRIVATE_KEY)
+  );
+}
+
 function getServiceAccount(): ServiceAccount {
   const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-  if (rawJson) {
-    const parsed = JSON.parse(rawJson) as {
-      project_id: string;
-      client_email: string;
-      private_key: string;
-    };
+  if (rawJson && rawJson.trim().length > 10) {
+    try {
+      const parsed = JSON.parse(rawJson) as {
+        project_id: string;
+        client_email: string;
+        private_key: string;
+      };
 
-    return {
-      projectId: parsed.project_id,
-      clientEmail: parsed.client_email,
-      privateKey: parsed.private_key.replace(/\\n/g, "\n"),
-    };
+      if (parsed.project_id && parsed.client_email && parsed.private_key) {
+        return {
+          projectId: parsed.project_id,
+          clientEmail: parsed.client_email,
+          privateKey: parsed.private_key.replace(/\\n/g, "\n"),
+        };
+      }
+    } catch {
+      // Invalid JSON, fall through to split vars
+    }
   }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -36,6 +69,12 @@ function getServiceAccount(): ServiceAccount {
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
       "Firebase Admin credentials are not configured. Set FIREBASE_SERVICE_ACCOUNT_KEY or individual Firebase env vars.",
+    );
+  }
+
+  if (isPlaceholderValue(projectId) || isPlaceholderValue(clientEmail)) {
+    throw new Error(
+      "Firebase Admin credentials contain placeholder values. Replace TODO values with real credentials.",
     );
   }
 
