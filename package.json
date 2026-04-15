@@ -11,7 +11,7 @@
     "lint": "eslint"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   },
   "dependencies": {
     "@tensorflow-models/mobilenet": "^2.1.1",
