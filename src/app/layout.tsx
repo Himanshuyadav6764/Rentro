@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
-import SessionAuthProvider from "@/components/providers/SessionAuthProvider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -22,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <SessionAuthProvider>{children}</SessionAuthProvider>
+        {children}
       </body>
     </html>
   );

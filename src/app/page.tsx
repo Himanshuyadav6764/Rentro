@@ -14,7 +14,6 @@ import {
   X,
   Heart
 } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import HomeView from "@/components/views/HomeView";
@@ -165,10 +164,16 @@ export default function AppHome() {
   }, [hydrateAuthState]);
 
   const handleLogout = useCallback(async () => {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-    });
-    await signOut({ redirect: false });
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Logout API failed — clear client state anyway
+    }
+
+    // Clear any lingering local storage
+    localStorage.removeItem("rentro_last_login");
 
     setIsLoggedIn(false);
     setCurrentUserName("Guest");
