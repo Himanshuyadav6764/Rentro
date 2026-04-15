@@ -57,6 +57,9 @@ export const authOptions: NextAuthOptions = {
             $setOnInsert: {
               trustScore: 50,
               riskScore: 50,
+              followers: [],
+              following: [],
+              memberSinceAt: new Date(),
             },
             $addToSet: { providers: "google" },
           },

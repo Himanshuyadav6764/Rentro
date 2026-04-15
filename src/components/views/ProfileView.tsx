@@ -23,11 +23,16 @@ import { getFirebaseClientAuth } from '@/lib/firebase-client';
 
 interface ProfileViewProps {
   currentUser?: {
+    id?: string;
     name?: string;
     email?: string;
     phone?: string;
     image?: string;
     providers?: string[];
+    followerCount?: number;
+    followingCount?: number;
+    memberSinceAt?: string;
+    createdAt?: string;
   } | null;
   onLogout?: () => void;
   onProfileUpdated?: (nextUser: {
@@ -36,6 +41,9 @@ interface ProfileViewProps {
     phone?: string;
     image?: string;
     providers?: string[];
+    followerCount?: number;
+    followingCount?: number;
+    memberSinceAt?: string;
   }) => void;
 }
 
@@ -106,6 +114,22 @@ function getPrimaryProvider(providers?: string[]): "google" | "email" | "phone" 
   return "unknown";
 }
 
+function formatMemberSinceDate(value?: string) {
+  if (!value) {
+    return "Member since recently";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Member since recently";
+  }
+
+  return `Member since ${parsed.toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  })}`;
+}
+
 export default function ProfileView({ currentUser, onProfileUpdated, onLogout }: ProfileViewProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = React.useState(false);
@@ -127,6 +151,11 @@ export default function ProfileView({ currentUser, onProfileUpdated, onLogout }:
   const provider = React.useMemo(
     () => getPrimaryProvider(currentUser?.providers),
     [currentUser?.providers],
+  );
+  const followerCount = currentUser?.followerCount ?? 0;
+  const followingCount = currentUser?.followingCount ?? 0;
+  const memberSinceLabel = formatMemberSinceDate(
+    currentUser?.memberSinceAt || currentUser?.createdAt,
   );
 
   React.useEffect(() => {
@@ -567,7 +596,7 @@ export default function ProfileView({ currentUser, onProfileUpdated, onLogout }:
         </div>
 
         <h2 className="text-2xl font-bold text-[#1e293b] tracking-tight">{profile.name}</h2>
-        <p className="text-slate-400 text-[13px] font-medium mt-1">Member since Nov 2025</p>
+        <p className="text-slate-400 text-[13px] font-medium mt-1">{memberSinceLabel}</p>
       </div>
 
       {/* Badges & Stats Row */}
@@ -584,9 +613,9 @@ export default function ProfileView({ currentUser, onProfileUpdated, onLogout }:
         </div>
 
         <div className="flex items-center gap-4 text-slate-500 font-bold text-[14px]">
-          <span>0 <span className="font-medium text-slate-400">Followers</span></span>
+          <span>{followerCount} <span className="font-medium text-slate-400">Followers</span></span>
           <div className="w-[1px] h-3 bg-slate-200"></div>
-          <span>0 <span className="font-medium text-slate-400">Following</span></span>
+          <span>{followingCount} <span className="font-medium text-slate-400">Following</span></span>
         </div>
       </div>
 

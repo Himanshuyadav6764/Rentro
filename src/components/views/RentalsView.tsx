@@ -588,7 +588,13 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
   const submitListingReturn = async (listing: ListingItem) => {
     if (isDbId(listing.id)) {
       const response = await fetch(`/api/listings/${listing.id}/mark-returned`, { method: 'POST' });
-      const payload = (await response.json()) as { error?: string; trustImpact?: { behaviorNote?: string } };
+      const payload = (await response.json()) as {
+        error?: string;
+        trustImpact?: {
+          seller?: { behaviorNote?: string };
+          renter?: { behaviorNote?: string };
+        };
+      };
 
       if (!response.ok) {
         setToast(payload.error || 'Unable to mark return');
@@ -596,10 +602,33 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
       }
 
       updateListing(listing.id, (current) => ({ ...current, status: 'completed' }));
-      setToast(payload.trustImpact?.behaviorNote || 'Marked as returned.');
+      const sellerNote = payload.trustImpact?.seller?.behaviorNote;
+      const renterNote = payload.trustImpact?.renter?.behaviorNote;
+      const combinedNote = [sellerNote, renterNote].filter(Boolean).join(' ');
+      setToast(combinedNote || 'Marked as returned.');
     } else {
       updateListing(listing.id, (current) => ({ ...current, status: 'completed' }));
       setToast('Marked as returned.');
+    }
+
+    setOpenListingPanel((prev) => ({ ...prev, [listing.id]: undefined }));
+  };
+
+  const submitListingNotReturned = async (listing: ListingItem) => {
+    if (isDbId(listing.id)) {
+      const response = await fetch(`/api/listings/${listing.id}/mark-not-returned`, { method: 'POST' });
+      const payload = (await response.json()) as { error?: string; trustImpact?: { behaviorNote?: string } };
+
+      if (!response.ok) {
+        setToast(payload.error || 'Unable to mark not returned');
+        return;
+      }
+
+      updateListing(listing.id, (current) => ({ ...current, status: 'dispute' }));
+      setToast(payload.trustImpact?.behaviorNote || 'Marked as not returned. Red flag raised.');
+    } else {
+      updateListing(listing.id, (current) => ({ ...current, status: 'dispute' }));
+      setToast('Marked as not returned. Red flag raised.');
     }
 
     setOpenListingPanel((prev) => ({ ...prev, [listing.id]: undefined }));
@@ -997,6 +1026,7 @@ export default function RentalsView({ createdListings, onOpenOwnerChat, searchQu
                       <button onClick={() => toggleListingPanel(item, 'extend')} className="bg-[#1b52d6] text-white px-3 py-1.5 rounded font-medium text-[13px]">Extend</button>
                       <button onClick={() => void openDirectChat(item.rentedBy, 'my_listings', item.itemName)} className="bg-[#2563eb] text-white px-3 py-1.5 rounded font-medium text-[13px]">Message</button>
                       <button onClick={() => toggleListingPanel(item, 'return')} className="bg-[#16a34a] text-white px-3 py-1.5 rounded font-medium text-[13px]">{returnApprovalPending ? 'Accept Return' : 'Mark as Returned'}</button>
+                      <button onClick={() => void submitListingNotReturned(item)} className="bg-[#dc2626] text-white px-3 py-1.5 rounded font-medium text-[13px]">Not Returned (Red Flag)</button>
                       <button onClick={() => toggleListingPanel(item, 'issue')} className="bg-[#ef4444] text-white px-3 py-1.5 rounded font-medium text-[13px]">Report Issue</button>
                     </div>
                   </div>

@@ -15,9 +15,11 @@ import {
   Gamepad,
   Wrench,
   Zap,
-   Calendar
+    Calendar,
+   Heart
 } from 'lucide-react';
 import LocationSelector from '../LocationSelector';
+import type { WishlistItem } from '@/components/WishlistSidebar';
 
 const CATEGORIES = [
    { name: 'Books', icon: <BookOpen className="w-7 h-7" />, color: 'bg-indigo-50 text-indigo-600' },
@@ -47,6 +49,8 @@ type FeedItem = {
 interface HomeViewProps {
   onSelectItem?: (id: string) => void;
    searchQuery?: string;
+   wishlistIds?: string[];
+   onWishlistToggle?: (item: WishlistItem) => void;
 }
 
 function formatDistance(distanceKm?: number) {
@@ -61,7 +65,12 @@ function formatDistance(distanceKm?: number) {
    return `${distanceKm.toFixed(1)} km`;
 }
 
-export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewProps) {
+export default function HomeView({
+   onSelectItem,
+   searchQuery = '',
+   wishlistIds = [],
+   onWishlistToggle,
+}: HomeViewProps) {
   const [userLocation, setUserLocation] = React.useState<{lat: number, lng: number} | null>(null);
    const [selectedCategory, setSelectedCategory] = React.useState('all');
    const [items, setItems] = React.useState<FeedItem[]>([]);
@@ -230,7 +239,7 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
         </div>
 
         {/* Featured Section (Now Nearby-Aware) */}
-        <div className="px-6 mt-10">
+      <div id="recommendation-grid-section" className="px-6 mt-10">
            <div className="flex justify-between items-end mb-8">
               <div>
                          <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-1">10km first, then 50km</h3>
@@ -253,6 +262,9 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
                 ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                {items.map((item) => (
+                        (() => {
+                           const isWishlisted = wishlistIds.includes(item.id);
+                           return (
                 <div 
                   key={item.id} 
                            onClick={() => onSelectItem?.(item.id)}
@@ -265,6 +277,28 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
                                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                  />
+
+                                 <button
+                                    type="button"
+                                    onClick={(event) => {
+                                       event.stopPropagation();
+                                       onWishlistToggle?.({
+                                          id: item.id,
+                                          name: item.title,
+                                          price: Number(item.rent_price || 0),
+                                          image: item.image_urls?.[0],
+                                          category: item.category || 'Others',
+                                       });
+                                    }}
+                                    className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full border border-white/70 bg-white/90 text-slate-400 shadow-sm transition-colors hover:text-rose-500"
+                                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                                 >
+                                    <Heart
+                                       size={18}
+                                       className={isWishlisted ? 'text-rose-500' : 'text-slate-400'}
+                                       fill={isWishlisted ? 'currentColor' : 'none'}
+                                    />
+                                 </button>
 
                       <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-[13px] font-black px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
                                      ₹ {item.rent_price || 0}<span className="text-slate-400 font-bold">/day</span>
@@ -288,6 +322,8 @@ export default function HomeView({ onSelectItem, searchQuery = '' }: HomeViewPro
                                  ) : null}
                    </div>
                 </div>
+                  );
+                })()
               ))}
            </div>
            )}

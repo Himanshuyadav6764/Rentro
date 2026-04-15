@@ -10,6 +10,9 @@ export interface IUser {
   providers: AuthProvider[];
   trustScore: number;
   riskScore: number;
+  followers: string[];
+  following: string[];
+  memberSinceAt?: Date;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +51,19 @@ const UserSchema = new Schema<IUser>(
       default: 50,
       min: 0,
       max: 100,
+    },
+    followers: {
+      type: [String],
+      default: [],
+    },
+    following: {
+      type: [String],
+      default: [],
+    },
+    memberSinceAt: {
+      type: Date,
+      default: Date.now,
+      immutable: true,
     },
     lastLoginAt: Date,
   },

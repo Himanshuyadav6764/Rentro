@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import socketRuntime from './src/lib/socketRuntime.js';
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = '0.0.0.0';
+const hostname = process.env.HOST || 'localhost';
 const port = Number(process.env.PORT || 3000);
 
 const app = next({ dev, hostname, port });

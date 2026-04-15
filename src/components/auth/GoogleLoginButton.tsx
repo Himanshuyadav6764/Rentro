@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { getFirebaseClientAuth } from "@/lib/firebase-client";
 
 type GoogleLoginButtonProps = {
   onSuccess: (userName?: string) => void;
@@ -52,12 +54,26 @@ export function GoogleLoginButton({ onSuccess, onError }: GoogleLoginButtonProps
         client_id: clientId,
         callback: async (googleResponse) => {
           try {
-            const response = await fetch("/api/auth/google", {
+            const auth = getFirebaseClientAuth();
+            const providerCredential = GoogleAuthProvider.credential(
+              googleResponse.credential,
+            );
+            const userCredential = await signInWithCredential(
+              auth,
+              providerCredential,
+            );
+            const firebaseToken = await userCredential.user.getIdToken();
+
+            const response = await fetch("/api/auth/firebase-login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ credential: googleResponse.credential }),
+              body: JSON.stringify({
+                firebaseToken,
+                provider: "google",
+                name: userCredential.user.displayName || undefined,
+              }),
             });
 
             const payload = (await response.json()) as {

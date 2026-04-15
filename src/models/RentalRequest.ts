@@ -3,6 +3,7 @@ import { Schema, model, models } from 'mongoose';
 export interface IRentalRequest {
   item_name: string;
   requester_name: string;
+  requester_id?: string;
   owner_id?: string;
   owner_name?: string;
   days: number;
@@ -15,6 +16,7 @@ export interface IRentalRequest {
 const RentalRequestSchema = new Schema<IRentalRequest>({
   item_name: { type: String, required: true },
   requester_name: { type: String, required: true },
+  requester_id: { type: String },
   owner_id: { type: String },
   owner_name: { type: String },
   days: { type: Number, required: true },

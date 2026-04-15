@@ -7,6 +7,7 @@ export interface IItem {
   image_urls: string[];
   image_public_ids: string[];
   owner_id?: string;
+  renter_id?: string;
   renter_name?: string;
   status:
     | 'pending'
@@ -28,6 +29,7 @@ export interface IItem {
   issues_count: number;
   late_returns_count: number;
   behavior_notes: string[];
+  actual_return_date?: Date;
   location_lat?: number;
   location_lng?: number;
   location_label?: string;
@@ -43,6 +45,7 @@ const ItemSchema = new Schema<IItem>({
   image_urls: [String],
   image_public_ids: [String],
   owner_id: String,
+  renter_id: String,
   renter_name: { type: String, default: 'Awaiting requests' },
   status: {
     type: String,
@@ -69,6 +72,7 @@ const ItemSchema = new Schema<IItem>({
   issues_count: { type: Number, default: 0 },
   late_returns_count: { type: Number, default: 0 },
   behavior_notes: { type: [String], default: [] },
+  actual_return_date: Date,
   location_lat: Number,
   location_lng: Number,
   location_label: String,

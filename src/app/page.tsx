@@ -25,7 +25,8 @@ import CreateListingModal from "@/components/CreateListingModal";
 import type { ListingSubmissionSummary } from "@/components/PricingAvailabilityStep";
 import LoginView from "@/components/views/LoginView";
 import WishlistSidebar from "@/components/WishlistSidebar";
-import ProfileDropdown from "@/components/ProfileDropdown";
+import type { WishlistItem } from "@/components/WishlistSidebar";
+import ProfileDropdown from "../components/ProfileDropdown";
 import { getFirebaseClientAuth } from "@/lib/firebase-client";
 
 const MOCK_SUGGESTIONS = [
@@ -40,6 +41,7 @@ const MOCK_SUGGESTIONS = [
 ];
 
 const EMAIL_LINK_KEY = "rentro_email_link";
+const WISHLIST_STORAGE_KEY = "rentro_wishlist_items";
 
 type CurrentUser = {
   id?: string;
@@ -48,9 +50,63 @@ type CurrentUser = {
   phone?: string;
   image?: string;
   providers?: string[];
+  followerCount?: number;
+  followingCount?: number;
+  memberSinceAt?: string;
+  createdAt?: string;
 };
 
 type RentalsLandingTab = "my_listings" | "my_rentals" | "requests" | "history";
+type UiLanguage = "en" | "hi" | "hinglish";
+
+const LABELS: Record<
+  UiLanguage,
+  {
+    navHome: string;
+    navChats: string;
+    navRentals: string;
+    navProfile: string;
+    listItem: string;
+    placeholderHome: string;
+    placeholderChats: string;
+    placeholderRentals: string;
+    placeholderProfile: string;
+  }
+> = {
+  en: {
+    navHome: "Home",
+    navChats: "Chats",
+    navRentals: "My Rentals",
+    navProfile: "Profile",
+    listItem: "LIST ITEM",
+    placeholderHome: "Search books, calculators, laptops...",
+    placeholderChats: "Search chats...",
+    placeholderRentals: "Search my rentals...",
+    placeholderProfile: "Search my profile...",
+  },
+  hi: {
+    navHome: "Home",
+    navChats: "Chats",
+    navRentals: "Mere Rentals",
+    navProfile: "Profile",
+    listItem: "ITEM LIST KAREIN",
+    placeholderHome: "Books, calculators, laptops search karein...",
+    placeholderChats: "Chats search karein...",
+    placeholderRentals: "Apne rentals search karein...",
+    placeholderProfile: "Apna profile search karein...",
+  },
+  hinglish: {
+    navHome: "Home",
+    navChats: "Chats",
+    navRentals: "My Rentals",
+    navProfile: "Profile",
+    listItem: "LIST ITEM",
+    placeholderHome: "Search books, calculators, laptops...",
+    placeholderChats: "Search chats...",
+    placeholderRentals: "Search my rentals...",
+    placeholderProfile: "Search my profile...",
+  },
+};
 
 export default function AppHome() {
   const router = useRouter();
@@ -64,13 +120,54 @@ export default function AppHome() {
   const [currentUserName, setCurrentUserName] = useState("Guest");
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [uiLanguage, setUiLanguage] = useState<UiLanguage>("en");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const profileTriggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const savedTheme = localStorage.getItem("rentro_theme");
+    const mode = savedTheme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", mode);
+    document.body.setAttribute("data-theme", mode);
+
+    const savedLanguage = localStorage.getItem("rentro_ui_language");
+    if (savedLanguage === "en" || savedLanguage === "hi" || savedLanguage === "hinglish") {
+      setUiLanguage(savedLanguage);
+    }
+
+    const handleLanguageChange = (event: Event) => {
+      const custom = event as CustomEvent<{ language?: UiLanguage }>;
+      const next = custom.detail?.language;
+      if (next === "en" || next === "hi" || next === "hinglish") {
+        setUiLanguage(next);
+      }
+    };
+
+    const handleThemeChange = (event: Event) => {
+      const custom = event as CustomEvent<{ theme?: "light" | "dark" }>;
+      const nextTheme = custom.detail?.theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", nextTheme);
+      document.body.setAttribute("data-theme", nextTheme);
+    };
+
+    window.addEventListener("rentro-language-changed", handleLanguageChange as EventListener);
+    window.addEventListener("rentro-theme-changed", handleThemeChange as EventListener);
+
+    return () => {
+      window.removeEventListener("rentro-language-changed", handleLanguageChange as EventListener);
+      window.removeEventListener("rentro-theme-changed", handleThemeChange as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -80,6 +177,69 @@ export default function AppHome() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const raw = localStorage.getItem(WISHLIST_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as WishlistItem[];
+      if (Array.isArray(parsed)) {
+        setWishlistItems(parsed);
+      }
+    } catch {
+      localStorage.removeItem(WISHLIST_STORAGE_KEY);
+    }
+  }, []);
+
+  const persistWishlist = useCallback((nextItems: WishlistItem[]) => {
+    setWishlistItems(nextItems);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(nextItems));
+    }
+  }, []);
+
+  const handleWishlistToggle = useCallback((item: WishlistItem) => {
+    setWishlistItems((prev) => {
+      const alreadyExists = prev.some((saved) => saved.id === item.id);
+      const nextItems = alreadyExists
+        ? prev.filter((saved) => saved.id !== item.id)
+        : [item, ...prev];
+
+      if (!alreadyExists) {
+        setIsWishlistOpen(true);
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(nextItems));
+      }
+
+      return nextItems;
+    });
+  }, []);
+
+  const handleWishlistRemove = useCallback((id: string) => {
+    const nextItems = wishlistItems.filter((item) => item.id !== id);
+    persistWishlist(nextItems);
+  }, [persistWishlist, wishlistItems]);
+
+  const handleExploreMoreRentals = useCallback(() => {
+    setIsWishlistOpen(false);
+    setActiveTab("home");
+
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        const section = document.getElementById("recommendation-grid-section");
+        section?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 160);
+    }
   }, []);
 
   useEffect(() => {
@@ -159,6 +319,12 @@ export default function AppHome() {
     void hydrateAuthState();
   }, [hydrateAuthState]);
 
+  useEffect(() => {
+    if (activeTab === "profile") {
+      void hydrateAuthState();
+    }
+  }, [activeTab, hydrateAuthState]);
+
   const handleLoginSuccess = useCallback(async () => {
     await hydrateAuthState();
   }, [hydrateAuthState]);
@@ -182,6 +348,9 @@ export default function AppHome() {
       phone?: string;
       image?: string;
       providers?: string[];
+      followerCount?: number;
+      followingCount?: number;
+      memberSinceAt?: string;
     }) => {
       setCurrentUser((prev) => {
         const merged = {
@@ -330,6 +499,44 @@ export default function AppHome() {
     item.text.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const buildSearchPath = useCallback((rawQuery: string) => {
+    const q = rawQuery.trim();
+    const params = new URLSearchParams();
+
+    if (q) {
+      params.set("q", q);
+    }
+
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("user_location");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as { lat?: number; lng?: number };
+          if (typeof parsed.lat === "number" && typeof parsed.lng === "number") {
+            params.set("lat", String(parsed.lat));
+            params.set("lng", String(parsed.lng));
+            params.set("radiusKm", "50");
+          }
+        } catch {
+          // Ignore invalid cached location payload.
+        }
+      }
+    }
+
+    const query = params.toString();
+    return `/search${query ? `?${query}` : ""}`;
+  }, []);
+
+  const openSearchPage = useCallback((rawQuery?: string) => {
+    const nextQuery = (rawQuery ?? searchQuery).trim();
+    if (!nextQuery) {
+      return;
+    }
+
+    setShowSuggestions(false);
+    router.push(buildSearchPath(nextQuery));
+  }, [buildSearchPath, router, searchQuery]);
+
   const renderContent = () => {
     if (isAuthChecking && activeTab !== "home") {
       return (
@@ -340,7 +547,15 @@ export default function AppHome() {
     }
 
     switch (activeTab) {
-      case "home": return <HomeView onSelectItem={(id) => setSelectedProductId(id)} searchQuery={searchQuery} />;
+      case "home":
+        return (
+          <HomeView
+            onSelectItem={(id) => setSelectedProductId(id)}
+            searchQuery={searchQuery}
+            wishlistIds={wishlistItems.map((item) => item.id)}
+            onWishlistToggle={handleWishlistToggle}
+          />
+        );
       case "chats": 
         if (!isLoggedIn) {
           return <LoginView onLogin={() => void handleLoginSuccess()} onClose={() => setActiveTab("home")} />;
@@ -361,17 +576,26 @@ export default function AppHome() {
             onProfileUpdated={handleProfileUpdated}
           />
         );
-      default: return <HomeView onSelectItem={(id) => setSelectedProductId(id)} searchQuery={searchQuery} />;
+      default:
+        return (
+          <HomeView
+            onSelectItem={(id) => setSelectedProductId(id)}
+            searchQuery={searchQuery}
+            wishlistIds={wishlistItems.map((item) => item.id)}
+            onWishlistToggle={handleWishlistToggle}
+          />
+        );
     }
   };
 
   const getSearchPlaceholder = () => {
+    const langLabels = LABELS[uiLanguage];
     switch (activeTab) {
-      case "home": return "Search books, calculators, laptops...";
-      case "chats": return "Search chats...";
-      case "rentals": return "Search my rentals...";
-      case "profile": return "Search my profile...";
-      default: return "Search books, calculators, laptops...";
+      case "home": return langLabels.placeholderHome;
+      case "chats": return langLabels.placeholderChats;
+      case "rentals": return langLabels.placeholderRentals;
+      case "profile": return langLabels.placeholderProfile;
+      default: return langLabels.placeholderHome;
     }
   };
 
@@ -404,27 +628,27 @@ export default function AppHome() {
         <nav className="flex-1 px-4 flex flex-col gap-2">
           <SidebarLink
             icon={<Home size={22} />}
-            label="Home"
+            label={LABELS[uiLanguage].navHome}
             isActive={activeTab === 'home'}
             onClick={() => setActiveTab('home')}
           />
           <SidebarLink
             icon={<MessageCircle size={22} />}
-            label="Chats"
+            label={LABELS[uiLanguage].navChats}
             isActive={activeTab === 'chats'}
             onClick={() => setActiveTab('chats')}
             badge={2}
           />
           <SidebarLink
             icon={<MinusCircle size={22} />}
-            label="My Rentals"
+            label={LABELS[uiLanguage].navRentals}
             isActive={activeTab === 'rentals'}
             onClick={() => setActiveTab('rentals')}
             badge={1}
           />
           <SidebarLink
             icon={<User size={22} />}
-            label="Profile"
+            label={LABELS[uiLanguage].navProfile}
             isActive={activeTab === 'profile'}
             onClick={() => setActiveTab('profile')}
           />
@@ -433,7 +657,7 @@ export default function AppHome() {
         <div className="p-6 mt-auto">
           <button onClick={() => setIsListingModalOpen(true)} className="w-full bg-[#1b52d6] text-white p-3 lg:p-4 rounded-2xl font-black shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2">
             <Plus size={24} strokeWidth={3} />
-            <span className="hidden lg:block">LIST ITEM</span>
+            <span className="hidden lg:block">{LABELS[uiLanguage].listItem}</span>
           </button>
         </div>
       </aside>
@@ -462,6 +686,12 @@ export default function AppHome() {
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    openSearchPage();
+                  }
+                }}
                 placeholder={getSearchPlaceholder()}
                 className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold placeholder:text-slate-300"
               />
@@ -479,7 +709,7 @@ export default function AppHome() {
                     key={i}
                     onClick={() => {
                       setSearchQuery(item.text);
-                      setShowSuggestions(false);
+                      openSearchPage(item.text);
                     }}
                     className="w-full text-left px-6 py-3.5 hover:bg-slate-50 transition-colors flex flex-col border-b border-slate-50 last:border-0"
                   >
@@ -534,6 +764,12 @@ export default function AppHome() {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  openSearchPage();
+                }
+              }}
               placeholder={getSearchPlaceholder()}
               className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-bold"
             />
@@ -550,7 +786,7 @@ export default function AppHome() {
                   key={i}
                   onClick={() => {
                     setSearchQuery(item.text);
-                    setShowSuggestions(false);
+                    openSearchPage(item.text);
                   }}
                   className="w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors flex flex-col border-b border-slate-50 last:border-0"
                 >
@@ -590,7 +826,13 @@ export default function AppHome() {
             onListingDone={handleListingSaved}
             onViewListing={handleViewListing}
           />
-          <WishlistSidebar isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
+          <WishlistSidebar
+            isOpen={isWishlistOpen}
+            onClose={() => setIsWishlistOpen(false)}
+            items={wishlistItems}
+            onRemove={handleWishlistRemove}
+            onExploreMore={handleExploreMoreRentals}
+          />
           <ProfileDropdown 
              isOpen={isProfileDropdownOpen} 
              onClose={() => setIsProfileDropdownOpen(false)} 

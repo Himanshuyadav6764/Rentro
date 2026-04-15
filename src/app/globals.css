@@ -10,6 +10,16 @@
   --card: #ffffff;
 }
 
+html[data-theme="dark"],
+body[data-theme="dark"] {
+  --background: #0b1220;
+  --foreground: #e6ecf8;
+  --brand: #4f8dff;
+  --brand-deep: #2d5fc9;
+  --border: #223049;
+  --card: #111827;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -26,6 +36,56 @@ body {
   font-family: var(--font-sans);
   margin: 0;
   padding: 0;
+}
+
+html[data-theme="dark"] body,
+body[data-theme="dark"] {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+html[data-theme="dark"] .bg-white,
+body[data-theme="dark"] .bg-white {
+  background-color: #111827 !important;
+}
+
+html[data-theme="dark"] .bg-slate-50,
+body[data-theme="dark"] .bg-slate-50 {
+  background-color: #1b2435 !important;
+}
+
+html[data-theme="dark"] .text-slate-900,
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-700,
+body[data-theme="dark"] .text-slate-900,
+body[data-theme="dark"] .text-slate-800,
+body[data-theme="dark"] .text-slate-700 {
+  color: #e6ecf8 !important;
+}
+
+html[data-theme="dark"] .text-slate-600,
+html[data-theme="dark"] .text-slate-500,
+html[data-theme="dark"] .text-slate-400,
+body[data-theme="dark"] .text-slate-600,
+body[data-theme="dark"] .text-slate-500,
+body[data-theme="dark"] .text-slate-400 {
+  color: #9fb0cb !important;
+}
+
+html[data-theme="dark"] .border-slate-100,
+html[data-theme="dark"] .border-slate-200,
+body[data-theme="dark"] .border-slate-100,
+body[data-theme="dark"] .border-slate-200 {
+  border-color: #26344c !important;
+}
+
+body.compact-mode .p-6,
+body.compact-mode .p-8,
+body.compact-mode .py-6,
+body.compact-mode .py-8,
+body.compact-mode .px-6,
+body.compact-mode .px-8 {
+  padding: 0.75rem !important;
 }
 
 /* Hide scrollbar for category and horizontal scrolling */

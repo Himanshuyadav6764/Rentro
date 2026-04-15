@@ -13,6 +13,9 @@ type LeanUser = {
   providers?: string[];
   trustScore?: number;
   riskScore?: number;
+  followers?: string[];
+  following?: string[];
+  memberSinceAt?: Date;
   createdAt?: Date;
 };
 
@@ -26,6 +29,10 @@ export function serializeUser(user: LeanUser) {
     providers: user.providers || [],
     trustScore: user.trustScore ?? 50,
     riskScore: user.riskScore ?? 50,
+    followerCount: user.followers?.length ?? 0,
+    followingCount: user.following?.length ?? 0,
+    followingIds: user.following || [],
+    memberSinceAt: user.memberSinceAt || user.createdAt,
     createdAt: user.createdAt,
   };
 }
@@ -54,6 +61,9 @@ export async function getAuthenticatedUser() {
           providers: [session.user.provider || "google"],
           trustScore: 50,
           riskScore: 50,
+          followers: [],
+          following: [],
+          memberSinceAt: new Date(),
           createdAt: new Date(),
         };
       }

@@ -4,29 +4,29 @@ import React from 'react';
 import { X, Heart, ShoppingBag, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
+export type WishlistItem = {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  category?: string;
+};
+
 interface WishlistSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  items: WishlistItem[];
+  onRemove: (id: string) => void;
+  onExploreMore: () => void;
 }
 
-const MOCK_WISHLIST = [
-  {
-    id: "1",
-    name: "Casio Scientific Calc",
-    price: "499",
-    image: "/calc.png",
-    category: "ACADEMIC"
-  },
-  {
-    id: "2",
-    name: "MacBook Pro M2",
-    price: "45,000",
-    image: "/macbook.png",
-    category: "LAPTOPS"
-  }
-];
-
-export default function WishlistSidebar({ isOpen, onClose }: WishlistSidebarProps) {
+export default function WishlistSidebar({
+  isOpen,
+  onClose,
+  items,
+  onRemove,
+  onExploreMore,
+}: WishlistSidebarProps) {
   return (
     <>
       {/* Backdrop */}
@@ -48,7 +48,7 @@ export default function WishlistSidebar({ isOpen, onClose }: WishlistSidebarProp
              </div>
              <div>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Wishlist</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{MOCK_WISHLIST.length} Saved Items</p>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{items.length} Saved Items</p>
              </div>
           </div>
           <button 
@@ -61,7 +61,7 @@ export default function WishlistSidebar({ isOpen, onClose }: WishlistSidebarProp
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 space-y-6 hide-scrollbar">
-          {MOCK_WISHLIST.length === 0 ? (
+          {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-4 py-20 grayscale opacity-40">
                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                   <Heart size={32} />
@@ -70,17 +70,27 @@ export default function WishlistSidebar({ isOpen, onClose }: WishlistSidebarProp
                <p className="text-sm font-medium text-slate-500">Save items you like to view them later here.</p>
             </div>
           ) : (
-            MOCK_WISHLIST.map((item) => (
+            items.map((item) => (
               <div key={item.id} className="group flex items-start gap-4 bg-white p-4 rounded-[2rem] border border-slate-100 hover:border-rose-200 transition-all shadow-sm hover:shadow-xl hover:shadow-rose-500/5 relative overflow-hidden">
                 <div className="w-24 h-24 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-50 group-hover:scale-105 transition-transform duration-500">
-                   <div className="w-full h-full flex items-center justify-center bg-white">
+                  {item.image ? (
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      width={96}
+                      height={96}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-white">
                       <ShoppingBag size={32} className="text-slate-200" />
-                   </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 pr-8">
-                   <span className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">{item.category}</span>
+                   <span className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">{item.category || 'OTHERS'}</span>
                    <h4 className="text-[15px] font-black text-slate-800 truncate mb-1 mt-0.5">{item.name}</h4>
-                   <p className="text-lg font-black text-slate-900">₹{item.price}</p>
+                   <p className="text-lg font-black text-slate-900">₹{item.price.toLocaleString('en-IN')}</p>
                    
                    <div className="flex items-center gap-2 mt-3">
                       <button className="bg-[#002f34] text-white px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
@@ -88,7 +98,10 @@ export default function WishlistSidebar({ isOpen, onClose }: WishlistSidebarProp
                       </button>
                    </div>
                 </div>
-                <button className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-xl">
+                <button
+                  onClick={() => onRemove(item.id)}
+                  className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-xl"
+                >
                    <Trash2 size={18} />
                 </button>
               </div>
@@ -98,7 +111,10 @@ export default function WishlistSidebar({ isOpen, onClose }: WishlistSidebarProp
 
         {/* Footer */}
         <div className="p-8 border-t border-slate-50 bg-white">
-           <button className="w-full bg-[#002f34] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-[#002f34]/20 hover:scale-[1.02] active:scale-95 transition-all">
+            <button
+             onClick={onExploreMore}
+             className="w-full bg-[#002f34] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-[#002f34]/20 hover:scale-[1.02] active:scale-95 transition-all"
+            >
               Explore More Rentals
            </button>
         </div>

@@ -502,12 +502,30 @@ export default function LoginView({ onLogin, onClose }: LoginViewProps) {
       onLogin();
       onClose();
     } catch (error) {
-      setError("Google sign in failed. Please try again.");
       if (typeof error === "object" && error !== null && "code" in error) {
         const code = String((error as { code?: unknown }).code);
-        if (code === "auth/popup-closed-by-user") {
-          setError("Google popup close ho gaya. Dobara try karo.");
+
+        switch (code) {
+          case "auth/popup-closed-by-user":
+            setError("Google popup close ho gaya. Dobara try karo.");
+            break;
+          case "auth/popup-blocked":
+            setError("Popup blocked hai. Browser me popups allow karke dobara try karo.");
+            break;
+          case "auth/unauthorized-domain":
+            setError("Ye domain Firebase me authorized nahi hai. Firebase Console me localhost add karo.");
+            break;
+          case "auth/operation-not-allowed":
+            setError("Google sign-in Firebase project me enable nahi hai. Authentication > Sign-in method me Google ON karo.");
+            break;
+          case "auth/invalid-api-key":
+            setError("Firebase API key invalid hai. NEXT_PUBLIC_FIREBASE_API_KEY check karo.");
+            break;
+          default:
+            setError("Google sign in failed. Please try again.");
         }
+      } else {
+        setError("Google sign in failed. Please try again.");
       }
     } finally {
       setIsLoading(false);

@@ -122,10 +122,13 @@ export async function POST(request: Request) {
           $setOnInsert: {
             trustScore: 50,
             riskScore: 50,
+            followers: [],
+            following: [],
+            memberSinceAt: new Date(),
           },
           $addToSet: { providers: provider },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       userId = dbUser._id.toString();

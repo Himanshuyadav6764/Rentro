@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import Item from '@/models/Item';
 import User from '@/models/User';
 import { connectToDatabase } from '@/lib/db';
-import { clampScore, scoreImpactOnReturn } from '@/lib/trustEngine';
+import {
+  clampScore,
+  scoreImpactOnRenterReturn,
+  scoreImpactOnSellerMarkReturned,
+} from '@/lib/trustEngine';
 import RentalHistory from '@/models/RentalHistory';
 
 function isObjectId(value: string) {
@@ -25,12 +29,17 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const daysLate = msDiff > 0 ? Math.ceil(msDiff / (24 * 60 * 60 * 1000)) : 0;
     const isLate = daysLate > 0;
 
-    const impact = scoreImpactOnReturn({ isLate, daysLate });
+    const renterImpact = scoreImpactOnRenterReturn(daysLate);
+    const sellerImpact = scoreImpactOnSellerMarkReturned();
 
     item.status = 'completed';
     item.actual_return_date = now;
     item.late_returns_count = (item.late_returns_count || 0) + (isLate ? 1 : 0);
-    item.behavior_notes = [...(item.behavior_notes || []), impact.behaviorNote].slice(-20);
+    item.behavior_notes = [
+      ...(item.behavior_notes || []),
+      renterImpact.behaviorNote,
+      sellerImpact.behaviorNote,
+    ].slice(-20);
     await item.save();
 
     await RentalHistory.create({
@@ -44,9 +53,18 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     if (item.owner_id && isObjectId(item.owner_id)) {
       const owner = await User.findById(item.owner_id);
       if (owner) {
-        owner.trustScore = clampScore(owner.trustScore + impact.trustDelta);
-        owner.riskScore = clampScore(owner.riskScore + impact.riskDelta);
+        owner.trustScore = clampScore((owner.trustScore || 50) + sellerImpact.trustDelta);
+        owner.riskScore = clampScore((owner.riskScore || 50) + sellerImpact.riskDelta);
         await owner.save();
+      }
+    }
+
+    if (item.renter_id && isObjectId(item.renter_id)) {
+      const renter = await User.findById(item.renter_id);
+      if (renter) {
+        renter.trustScore = clampScore((renter.trustScore || 50) + renterImpact.trustDelta);
+        renter.riskScore = clampScore((renter.riskScore || 50) + renterImpact.riskDelta);
+        await renter.save();
       }
     }
 
@@ -57,7 +75,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         status: item.status,
         late_returns_count: item.late_returns_count,
       },
-      trustImpact: impact,
+      trustImpact: {
+        seller: sellerImpact,
+        renter: renterImpact,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to mark return';

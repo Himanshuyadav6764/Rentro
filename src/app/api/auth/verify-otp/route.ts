@@ -79,10 +79,13 @@ export async function POST(request: Request) {
           $setOnInsert: {
             trustScore: 50,
             riskScore: 50,
+            followers: [],
+            following: [],
+            memberSinceAt: new Date(),
           },
           $addToSet: { providers: "email" },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       const token = signAuthToken({

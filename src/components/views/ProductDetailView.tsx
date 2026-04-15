@@ -33,6 +33,10 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
    const router = useRouter();
    const [item, setItem] = React.useState<ListingData | null>(null);
    const [isLoadingItem, setIsLoadingItem] = React.useState(false);
+   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+   const [isFollowingOwner, setIsFollowingOwner] = React.useState(false);
+   const [ownerFollowerCount, setOwnerFollowerCount] = React.useState<number>(0);
+   const [isUpdatingFollow, setIsUpdatingFollow] = React.useState(false);
 
    React.useEffect(() => {
       let cancelled = false;
@@ -67,6 +71,80 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
       };
    }, [productId]);
 
+   React.useEffect(() => {
+      let cancelled = false;
+
+      async function hydrateCurrentUser() {
+         try {
+            const response = await fetch('/api/user/me', { cache: 'no-store' });
+            const payload = (await response.json()) as {
+               success?: boolean;
+               user?: {
+                  id?: string;
+                  followingIds?: string[];
+               };
+            };
+
+            if (!cancelled && response.ok && payload.success && payload.user?.id) {
+               setCurrentUserId(payload.user.id);
+               if (item?.owner_id) {
+                  setIsFollowingOwner((payload.user.followingIds || []).includes(item.owner_id));
+               }
+            }
+         } catch {
+            if (!cancelled) {
+               setCurrentUserId(null);
+            }
+         }
+      }
+
+      void hydrateCurrentUser();
+
+      return () => {
+         cancelled = true;
+      };
+   }, []);
+
+   React.useEffect(() => {
+      setIsFollowingOwner(false);
+      setOwnerFollowerCount(0);
+   }, [item?.owner_id]);
+
+   React.useEffect(() => {
+      let cancelled = false;
+
+      async function hydrateFollowStatus() {
+         if (!item?.owner_id || !currentUserId || item.owner_id === currentUserId) {
+            return;
+         }
+
+         try {
+            const response = await fetch(
+               `/api/user/follow?targetUserId=${encodeURIComponent(item.owner_id)}`,
+               { cache: 'no-store' },
+            );
+            const payload = (await response.json()) as {
+               success?: boolean;
+               following?: boolean;
+               targetFollowerCount?: number;
+            };
+
+            if (!cancelled && response.ok && payload.success) {
+               setIsFollowingOwner(Boolean(payload.following));
+               setOwnerFollowerCount(payload.targetFollowerCount || 0);
+            }
+         } catch {
+            // Keep silent to avoid blocking details screen.
+         }
+      }
+
+      void hydrateFollowStatus();
+
+      return () => {
+         cancelled = true;
+      };
+   }, [currentUserId, item?.owner_id]);
+
    const title = item?.title || 'MacBook Pro M2';
    const dailyPrice = item?.rent_price || 250;
    const deposit = item?.deposit || 1000;
@@ -95,6 +173,47 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
       }
 
       onRent?.();
+   };
+
+   const handleToggleFollowOwner = async () => {
+      if (!item?.owner_id || !currentUserId || item.owner_id === currentUserId) {
+         return;
+      }
+
+      if (isUpdatingFollow) {
+         return;
+      }
+
+      setIsUpdatingFollow(true);
+
+      try {
+         const response = await fetch('/api/user/follow', {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ targetUserId: item.owner_id }),
+         });
+
+         const payload = (await response.json()) as {
+            success?: boolean;
+            following?: boolean;
+            targetFollowerCount?: number;
+         };
+
+         if (!response.ok || !payload.success) {
+            return;
+         }
+
+         setIsFollowingOwner(Boolean(payload.following));
+         if (typeof payload.targetFollowerCount === 'number') {
+            setOwnerFollowerCount(payload.targetFollowerCount);
+         }
+      } catch {
+         // Keep silent to avoid breaking details flow.
+      } finally {
+         setIsUpdatingFollow(false);
+      }
    };
 
    return (
@@ -172,8 +291,25 @@ export default function ProductDetailView({ productId, onBack, onChatWithOwner, 
                               <Star size={12} fill="currentColor" /> 4.9
                            </div>
                            <span className="text-[12px] font-bold text-slate-500">12 Rents</span>
+                           {ownerFollowerCount > 0 ? (
+                              <span className="text-[12px] font-bold text-slate-500">{ownerFollowerCount} Followers</span>
+                           ) : null}
                         </div>
                      </div>
+                     {item?.owner_id && currentUserId && item.owner_id !== currentUserId ? (
+                        <button
+                           type="button"
+                           onClick={() => void handleToggleFollowOwner()}
+                           disabled={isUpdatingFollow}
+                           className={`ml-auto rounded-xl px-4 py-2 text-[12px] font-black uppercase tracking-wider transition-all ${
+                              isFollowingOwner
+                                 ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                 : 'bg-[#1b52d6] text-white hover:opacity-90'
+                           }`}
+                        >
+                           {isUpdatingFollow ? 'Updating...' : isFollowingOwner ? 'Following' : 'Follow'}
+                        </button>
+                     ) : null}
                   </div>
                </div>
 

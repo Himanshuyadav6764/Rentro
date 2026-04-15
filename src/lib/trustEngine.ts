@@ -20,6 +20,47 @@ export function detectSuspiciousWords(message: string) {
   };
 }
 
+export function scoreImpactOnRentalStart() {
+  return {
+    trustDelta: 3,
+    riskDelta: -1,
+    behaviorNote: 'Item rented successfully. Trust increased by +3.',
+  };
+}
+
+export function scoreImpactOnSellerMarkReturned() {
+  return {
+    trustDelta: 5,
+    riskDelta: -2,
+    behaviorNote: 'Seller marked return completed. Trust increased by +5.',
+  };
+}
+
+export function scoreImpactOnRenterReturn(daysLate: number) {
+  if (daysLate <= 0) {
+    return {
+      trustDelta: 3,
+      riskDelta: -2,
+      behaviorNote: 'On-time return by renter. Trust increased by +3.',
+    };
+  }
+
+  const penalty = daysLate * 3;
+  return {
+    trustDelta: -penalty,
+    riskDelta: Math.min(30, daysLate * 2),
+    behaviorNote: `Late return by renter (${daysLate} day(s)). Trust decreased by -${penalty}.`,
+  };
+}
+
+export function scoreImpactOnNotReturned() {
+  return {
+    trustDelta: -50,
+    riskDelta: 40,
+    behaviorNote: 'Item not returned. Red flag triggered with -50 trust.',
+  };
+}
+
 export function evaluateExtensionPolicy(params: {
   trustScore: number;
   riskScore: number;

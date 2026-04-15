@@ -114,7 +114,7 @@ export async function PATCH(request: Request) {
             riskScore: 50,
           },
         },
-        { new: true, upsert: true },
+        { upsert: true, returnDocument: "after" },
       ).lean();
 
       if (!updated) {
@@ -140,6 +140,9 @@ export async function PATCH(request: Request) {
         phone: updates.phone || authUser.phone,
         image: updates.image || authUser.image,
         providers: authUser.providers || [],
+        followers: authUser.followers || [],
+        following: authUser.following || [],
+        memberSinceAt: authUser.memberSinceAt || authUser.createdAt || new Date(),
       };
 
       return NextResponse.json({
