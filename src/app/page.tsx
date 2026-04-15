@@ -14,7 +14,6 @@ import {
   X,
   Heart
 } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import HomeView from "@/components/views/HomeView";
@@ -168,7 +167,6 @@ export default function AppHome() {
     await fetch("/api/auth/logout", {
       method: "POST",
     });
-    await signOut({ redirect: false });
 
     setIsLoggedIn(false);
     setCurrentUserName("Guest");

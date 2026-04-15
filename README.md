@@ -7,8 +7,8 @@ Production-ready multi-provider authentication for a campus marketplace.
 - Next.js 16 App Router
 - Tailwind CSS
 - MongoDB + Mongoose
-- NextAuth.js (Google OAuth)
-- Firebase Authentication (Phone OTP)
+- Firebase Authentication (Google popup, Phone OTP, Email link)
+- NextAuth.js (optional legacy OAuth/session support)
 - Nodemailer (Email OTP)
 - JWT for OTP sessions
 
@@ -16,9 +16,9 @@ Production-ready multi-provider authentication for a campus marketplace.
 
 1. Phone OTP login with Firebase client OTP + backend Firebase token verification
 2. Email OTP login with secure hashed OTP storage and 5-minute expiry
-3. Google OAuth login via NextAuth
+3. Google login via Firebase popup + backend token verification
 4. Returning user auto-fill (Continue as user) via localStorage
-5. Session handling for both NextAuth and OTP users
+5. Session handling for custom JWT cookie (with optional NextAuth fallback)
 6. Protected routes using Next.js 16 `proxy.ts`
 7. Rate limiting for OTP requests
 8. OTP resend timer in UI (30 seconds)
@@ -78,7 +78,7 @@ Required groups:
 
 - MongoDB: `MONGODB_URI`, `MONGODB_DB`
 - OTP JWT: `JWT_SECRET`, `OTP_HASH_SECRET`
-- NextAuth: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- NextAuth (optional): `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - Firebase client: `NEXT_PUBLIC_FIREBASE_*`
 - Firebase admin: `FIREBASE_SERVICE_ACCOUNT_KEY` (or split vars)
 - SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
@@ -116,7 +116,7 @@ npm run dev
   - verifies Firebase ID token, creates/logins user, sets JWT cookie
 
 - `GET /api/auth/google`
-  - redirects to NextAuth Google sign-in flow
+  - redirects to NextAuth Google sign-in flow (optional flow)
 
 - `GET/POST /api/auth/[...nextauth]`
   - NextAuth core routes (`signin`, `callback`, `session`, etc.)
@@ -170,3 +170,33 @@ A user is considered authenticated if either:
 4. Use SMTP credentials from trusted provider (SES, SendGrid, Mailgun, etc.)
 5. Run behind HTTPS so secure cookies are enforced
 6. Monitor OTP abuse and tune rate limits for your traffic
+
+## Deploy (Node.js Server)
+
+This project uses a custom server (`server.mjs`) for Socket.IO, so deploy it as a long-running Node process (for example: Railway, Render, VM, Docker).
+
+1. Install dependencies:
+
+```bash
+npm ci
+```
+
+2. Build production bundle:
+
+```bash
+npm run build
+```
+
+3. Start production server:
+
+```bash
+npm run start
+```
+
+4. Add all required environment variables from `.env.example` in your deployment platform.
+
+5. Ensure your auth domains are configured:
+
+- Firebase Authentication authorized domains: add your production domain.
+- Google Cloud OAuth authorized redirect URI (if using NextAuth flow):
+  - `https://your-domain.com/api/auth/callback/google`
