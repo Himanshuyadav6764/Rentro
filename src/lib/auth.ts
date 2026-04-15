@@ -47,11 +47,16 @@ export async function getCurrentJwtUser() {
       if (user) {
         return user;
       }
-    } catch {
-      // In development, continue with token-only session fallback.
+    } catch (err) {
+      // DB is unreachable — log the error
+      console.error("[auth] DB error in getCurrentJwtUser:", err);
     }
 
-    if (process.env.NODE_ENV !== "production" && (payload.email || payload.phone)) {
+    // Fallback: build a minimal user object from the JWT payload itself.
+    // The token was already verified so the user IS authenticated.
+    // This prevents logged-in users from being treated as guests when
+    // the DB has a momentary hiccup.
+    if (payload.email || payload.phone) {
       return {
         _id: { toString: () => payload.sub },
         name: payload.name || "Rentro User",

@@ -43,20 +43,22 @@ export async function getAuthenticatedUser() {
       if (nextAuthUser) {
         return nextAuthUser;
       }
-    } catch {
-      if (process.env.NODE_ENV !== "production") {
-        return {
-          _id: { toString: () => `google:${session.user.email}` },
-          name: session.user.name || "Rentro User",
-          email: session.user.email,
-          phone: session.user.phone,
-          image: session.user.image,
-          providers: [session.user.provider || "google"],
-          trustScore: 50,
-          riskScore: 50,
-          createdAt: new Date(),
-        };
-      }
+    } catch (err) {
+      console.error("[session] DB error in getAuthenticatedUser:", err);
+
+      // Fallback: build a minimal user from the NextAuth session.
+      // The session is already authenticated via JWT, so the user is real.
+      return {
+        _id: { toString: () => session.user.id || `google:${session.user.email}` },
+        name: session.user.name || "Rentro User",
+        email: session.user.email,
+        phone: session.user.phone,
+        image: session.user.image,
+        providers: [session.user.provider || "google"],
+        trustScore: 50,
+        riskScore: 50,
+        createdAt: new Date(),
+      };
     }
   }
 

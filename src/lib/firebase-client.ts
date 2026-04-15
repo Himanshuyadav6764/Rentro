@@ -2,16 +2,7 @@
 
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-
-function isLikelyPlaceholder(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return (
-    normalized.startsWith("your-") ||
-    normalized.includes("<") ||
-    normalized.includes("example") ||
-    normalized.includes("project-id")
-  );
-}
+import { isPlaceholderValue } from "@/lib/envCheck";
 
 function getFirebaseConfig() {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -26,10 +17,10 @@ function getFirebaseConfig() {
   }
 
   if (
-    isLikelyPlaceholder(apiKey) ||
-    isLikelyPlaceholder(authDomain) ||
-    isLikelyPlaceholder(projectId) ||
-    isLikelyPlaceholder(appId)
+    isPlaceholderValue(apiKey) ||
+    isPlaceholderValue(authDomain) ||
+    isPlaceholderValue(projectId) ||
+    isPlaceholderValue(appId)
   ) {
     throw new Error(
       "Firebase client is using placeholder values. Update NEXT_PUBLIC_FIREBASE_* in .env.",

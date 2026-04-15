@@ -3,6 +3,11 @@ import { z } from "zod";
 import { connectToDatabase } from "@/lib/db";
 import { setAuthCookie } from "@/lib/auth";
 import { signAuthToken } from "@/lib/jwt";
+import { isPlaceholderValue } from "@/lib/envCheck";
+import {
+  getFirebaseAdminAuth,
+  isFirebaseAdminConfigured,
+} from "@/lib/firebase-admin";
 import User from "@/models/User";
 
 export const runtime = "nodejs";
@@ -21,22 +26,50 @@ type FirebaseLookupUser = {
   phoneNumber?: string;
 };
 
-function isPlaceholder(value: string | undefined): boolean {
-  if (!value) {
-    return true;
+type VerifiedUser = {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+};
+
+/**
+ * Preferred: use Firebase Admin SDK (validates signature server-side).
+ */
+async function verifyWithAdminSdk(
+  idToken: string,
+): Promise<VerifiedUser | null> {
+  if (!isFirebaseAdminConfigured()) {
+    return null;
   }
 
-  const normalized = value.trim().toLowerCase();
-  return normalized.startsWith("your-") || normalized.includes("example");
+  try {
+    const auth = getFirebaseAdminAuth();
+    const decoded = await auth.verifyIdToken(idToken);
+
+    return {
+      uid: decoded.uid,
+      email: decoded.email,
+      displayName: decoded.name,
+      photoURL: decoded.picture,
+    };
+  } catch (err) {
+    console.warn("[firebase-login] Admin SDK verification failed:", err);
+    return null;
+  }
 }
 
-async function verifyFirebaseIdTokenWithApiKey(
+/**
+ * Fallback: use Firebase REST API (less secure – only checks token is valid,
+ * does not verify signature against Google public keys).
+ */
+async function verifyWithRestApi(
   idToken: string,
-): Promise<FirebaseLookupUser> {
+): Promise<VerifiedUser | null> {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-  if (isPlaceholder(apiKey)) {
-    throw new Error("Firebase API key is not configured");
+  if (isPlaceholderValue(apiKey)) {
+    return null;
   }
 
   const response = await fetch(
@@ -56,6 +89,8 @@ async function verifyFirebaseIdTokenWithApiKey(
     };
 
     const code = payload.error?.message || "UNKNOWN";
+    console.error("[firebase-login] REST API error:", code);
+
     if (code.includes("INVALID_ID_TOKEN") || code.includes("USER_NOT_FOUND")) {
       throw new Error("Firebase token invalid or expired");
     }
@@ -63,14 +98,21 @@ async function verifyFirebaseIdTokenWithApiKey(
     throw new Error("Unable to verify Firebase token");
   }
 
-  const data = (await response.json()) as { users?: FirebaseLookupUser[] };
+  const data = (await response.json()) as {
+    users?: FirebaseLookupUser[];
+  };
   const user = data.users?.[0];
 
   if (!user?.localId) {
-    throw new Error("Firebase account not found");
+    return null;
   }
 
-  return user;
+  return {
+    uid: user.localId,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoUrl,
+  };
 }
 
 function fallbackName(email: string | undefined, uid: string) {
@@ -86,7 +128,22 @@ export async function POST(request: Request) {
     const json = await request.json();
     const { firebaseToken, provider, name } = bodySchema.parse(json);
 
-    const firebaseUser = await verifyFirebaseIdTokenWithApiKey(firebaseToken);
+    // Try Admin SDK first (secure), fall back to REST API
+    let firebaseUser = await verifyWithAdminSdk(firebaseToken);
+    if (!firebaseUser) {
+      firebaseUser = await verifyWithRestApi(firebaseToken);
+    }
+
+    if (!firebaseUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Firebase token verification failed. Check Firebase credentials.",
+        },
+        { status: 401 },
+      );
+    }
 
     if (!firebaseUser.email) {
       return NextResponse.json(
@@ -100,12 +157,14 @@ export async function POST(request: Request) {
 
     const normalizedEmail = firebaseUser.email.toLowerCase();
     const resolvedName =
-      name || firebaseUser.displayName || fallbackName(normalizedEmail, firebaseUser.localId);
+      name ||
+      firebaseUser.displayName ||
+      fallbackName(normalizedEmail, firebaseUser.uid);
 
-    let userId = `firebase:${firebaseUser.localId}`;
+    let userId = `firebase:${firebaseUser.uid}`;
     let userName = resolvedName;
     let userEmail = normalizedEmail;
-    let userImage = firebaseUser.photoUrl;
+    let userImage = firebaseUser.photoURL;
 
     try {
       await connectToDatabase();
@@ -116,7 +175,7 @@ export async function POST(request: Request) {
           $set: {
             email: normalizedEmail,
             name: resolvedName,
-            image: firebaseUser.photoUrl,
+            image: firebaseUser.photoURL,
             lastLoginAt: new Date(),
           },
           $setOnInsert: {
@@ -132,9 +191,17 @@ export async function POST(request: Request) {
       userName = dbUser.name;
       userEmail = dbUser.email;
       userImage = dbUser.image;
-    } catch {
+    } catch (err) {
+      console.error("[firebase-login] DB error:", err);
+      // In production, DB must be reachable for a full login
       if (process.env.NODE_ENV === "production") {
-        throw new Error("Database unavailable for login");
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Service temporarily unavailable. Please try again.",
+          },
+          { status: 503 },
+        );
       }
     }
 
@@ -169,6 +236,8 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    console.error("[firebase-login] Unhandled error:", error);
 
     return NextResponse.json(
       {
